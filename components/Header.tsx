@@ -1,27 +1,50 @@
 import React from 'react';
-import { Scale, ShieldCheck } from 'lucide-react';
+import { Scale, ShieldCheck, Activity } from 'lucide-react';
 
 export const Header: React.FC = () => {
   return (
-    <header className="bg-slate-900 text-white border-b border-indigo-900 sticky top-0 z-50">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="bg-indigo-600 p-1.5 rounded-lg shadow-lg shadow-indigo-900/50">
-            <Scale className="w-6 h-6 text-white" />
+    <header className="bg-slate-900 border-b border-indigo-500/30 sticky top-0 z-50 shadow-xl shadow-indigo-900/20">
+      <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950 opacity-90"></div>
+      <div className="container mx-auto px-4 h-18 md:h-20 flex items-center justify-between relative z-10">
+        <div className="flex items-center gap-4">
+          <div className="relative group">
+            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-200"></div>
+            <div className="relative bg-slate-800 p-2.5 rounded-xl border border-slate-700 shadow-2xl">
+              <Scale className="w-6 h-6 text-indigo-400" />
+            </div>
           </div>
           <div>
-            <h1 className="text-lg font-bold tracking-tight leading-none text-white">AdGuardian CN</h1>
-            <p className="text-indigo-300 text-[10px] tracking-wider uppercase font-medium">广告合规智能监管系统</p>
+            <h1 className="text-xl md:text-2xl font-black tracking-tight text-white font-sans">
+              AdGuardian <span className="text-indigo-400">CN</span>
+            </h1>
+            <div className="flex items-center gap-2">
+              <p className="text-[10px] md:text-xs text-slate-400 uppercase tracking-[0.2em] font-medium">
+                广告合规智能监管系统
+              </p>
+              <span className="hidden md:inline-block px-1.5 py-0.5 bg-indigo-900/50 border border-indigo-500/30 rounded text-[9px] text-indigo-300">
+                PRO
+              </span>
+            </div>
           </div>
         </div>
         
-        <div className="hidden md:flex items-center gap-3">
-           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-300">
-             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-             <span>已加载最新《广告法》数据库</span>
+        <div className="hidden md:flex items-center gap-4">
+           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700/50 backdrop-blur-sm">
+             <div className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+             </div>
+             <span className="text-xs text-slate-300 font-medium">系统运行正常</span>
            </div>
-           <div className="h-4 w-px bg-slate-700"></div>
-           <span className="text-xs text-slate-500 font-mono">v2.1.0</span>
+           
+           <div className="h-8 w-px bg-slate-700/50"></div>
+           
+           <div className="flex flex-col items-end">
+             <span className="text-xs text-slate-400 flex items-center gap-1">
+               <ShieldCheck className="w-3 h-3 text-indigo-400" /> 
+               法规库: <span className="text-slate-200">2025.07版</span>
+             </span>
+           </div>
         </div>
       </div>
     </header>

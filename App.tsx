@@ -6,7 +6,7 @@ import { HistoryList } from './components/HistoryList';
 import { DiscoveryPanel } from './components/DiscoveryPanel';
 import { AnalysisState, InputMode, HistoryItem } from './types';
 import { analyzeContent } from './services/geminiService';
-import { AlertCircle, Search, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Search, ShieldCheck, Radar } from 'lucide-react';
 
 const HISTORY_KEY = 'adguardian_history_v1';
 const MAX_HISTORY = 20;
@@ -91,47 +91,50 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 font-sans">
+    <div className="min-h-screen bg-slate-50 font-sans selection:bg-indigo-100 selection:text-indigo-900">
+      <div className="fixed inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03] pointer-events-none"></div>
+      
       <Header />
       
-      <main className="container mx-auto px-4 max-w-5xl mt-8">
+      <main className="container mx-auto px-4 max-w-6xl mt-8 pb-20 relative z-10">
         
-        {/* Main Tab Navigation */}
+        {/* Tab Navigation */}
         <div className="flex justify-center mb-10">
-           <div className="bg-white p-1.5 rounded-xl shadow-sm border border-slate-200 flex">
+           <div className="bg-slate-900 p-1.5 rounded-2xl shadow-xl shadow-slate-300/50 flex relative overflow-hidden">
+              <div className="absolute inset-0 bg-slate-800/50"></div>
               <button 
                 onClick={() => setActiveTab('ANALYSIS')}
-                className={`flex items-center gap-2 px-8 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                className={`relative z-10 flex items-center gap-2 px-8 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
                   activeTab === 'ANALYSIS' 
-                  ? 'bg-indigo-600 text-white shadow-md' 
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 translate-y-[-1px]' 
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
                 }`}
               >
                 <ShieldCheck className="w-4 h-4" />
-                合规校验
+                合规校验台
               </button>
               <button 
                 onClick={() => setActiveTab('DISCOVERY')}
-                className={`flex items-center gap-2 px-8 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                className={`relative z-10 flex items-center gap-2 px-8 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
                   activeTab === 'DISCOVERY' 
-                  ? 'bg-indigo-600 text-white shadow-md' 
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 translate-y-[-1px]' 
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
                 }`}
               >
-                <Search className="w-4 h-4" />
-                风险巡查
+                <Radar className="w-4 h-4" />
+                全网巡查雷达
               </button>
            </div>
         </div>
 
         {activeTab === 'ANALYSIS' && (
           <div className="animate-fade-in space-y-8">
-            <div className="text-center space-y-3">
-                <h2 className="text-3xl md:text-4xl font-extrabold text-slate-800 tracking-tight">
-                    智能广告合规校验系统
+            <div className="text-center space-y-3 mb-8">
+                <h2 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight">
+                    智能广告合规校验
                 </h2>
-                <p className="text-slate-500 max-w-2xl mx-auto text-lg">
-                    依据最新监管法规，AI深度识别广告风险，一键生成专业举报文案。
+                <p className="text-slate-500 max-w-2xl mx-auto text-lg font-medium">
+                    基于 Google Gemini 多模态模型，精准识别图文违规风险
                 </p>
             </div>
 
@@ -143,11 +146,13 @@ const App: React.FC = () => {
             />
             
             {state.error && (
-                <div className="bg-red-50 border border-red-200 text-red-800 p-5 rounded-xl flex items-start gap-4 shadow-sm animate-pulse">
-                    <AlertCircle className="w-6 h-6 shrink-0 text-red-600 mt-0.5" />
+                <div className="bg-rose-50 border border-rose-200 text-rose-800 p-6 rounded-2xl flex items-start gap-4 shadow-sm animate-pulse">
+                    <div className="bg-rose-100 p-2 rounded-full">
+                        <AlertCircle className="w-6 h-6 text-rose-600" />
+                    </div>
                     <div>
-                      <h4 className="font-bold">分析中断</h4>
-                      <p className="text-sm mt-1 opacity-90">{state.error}</p>
+                      <h4 className="font-bold text-lg">分析中断</h4>
+                      <p className="text-sm mt-1 leading-relaxed opacity-90">{state.error}</p>
                     </div>
                 </div>
             )}
@@ -170,15 +175,14 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Footer Disclaimer */}
-        <div className="mt-20 border-t border-slate-200 pt-8 text-center text-xs text-slate-400 leading-relaxed">
-            <p className="max-w-xl mx-auto">
-                <span className="font-bold text-slate-500">免责声明：</span> 
-                本工具提供的合规建议基于人工智能模型生成，仅供参考，不具有法律效力。
-                在做出重大商业决策或法律行动前，请务必咨询专业律师或相关监管部门。
-                系统不会保存您的敏感商业数据。
+        {/* Footer */}
+        <div className="mt-24 border-t border-slate-200 pt-8 text-center">
+            <p className="text-xs text-slate-400 mb-2 font-medium tracking-wide">
+                AdGuardian CN &copy; 2025
             </p>
-            <p className="mt-2 text-slate-300">© 2025 AdGuardian CN. All Rights Reserved.</p>
+            <p className="text-[10px] text-slate-300 max-w-lg mx-auto leading-relaxed">
+                本工具生成结果仅供参考，不作为法律依据。请以监管部门最终认定为准。
+            </p>
         </div>
       </main>
     </div>

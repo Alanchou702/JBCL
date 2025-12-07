@@ -30,13 +30,18 @@ const SYSTEM_INSTRUCTION = `
 
 **总结文案（举报文案）格式严格要求**：
 仅当 \`isAd\` 为 \`true\` 且发现违规时，生成以下格式文案。**总字数严格控制在450字以内**。
-必须严格套用以下模板，不要随意发挥，保留模板中的法律引用风格：
+请根据**内容载体类型**选择合适的开头模板，不要混淆“文章”与“商品页”：
 
-"该企业通过认证“微信公众号或者小程序”发布文章：[文章标题]，链接[URL] 该文章推广“[商品/服务名称]” [所属行业，如医疗服务/保健食品]，属[广告类型]，涉嫌违反[列举法律名称]发布违法广告。文章内容存在[具体违规行为描述]，明确表述[引用违规原文片段]，违反《[法律名称]》第[几]条禁止性规定；[如果是医疗广告且未审查/违规]同时该[类型]广告未经[相关部门]审查批准/擅自发布，违反《[法律名称]》第[几]条审查程序要求。[如果有传播数据，必须在此插入一句：经查，该内容显示阅读量/销量为[具体数字]，传播范围较广/影响较大。] 
+**情形A：如果是电商平台（淘宝/京东/拼多多）、微信小程序商城、店铺商品详情页（通常含价格、购物车、立即购买按钮，或者链接是#小程序://开头）：**
+"该企业在认证的“[平台名称，如微信小程序/淘宝/京东/拼多多]”店铺内销售商品“[商品名称]”，其商品详情页/宣传页介绍内容属[广告类型]，涉嫌违反[列举法律名称]发布违法广告。该商品页面内容存在[具体违规行为描述]，明确表述[引用违规原文片段]，违反《[法律名称]》第[几]条禁止性规定；[如果是医疗广告且未审查/违规]同时该[类型]广告未经[相关部门]审查批准/擅自发布，违反《[法律名称]》第[几]条审查程序要求。[如果有传播数据，必须在此插入一句：经查，该商品页面显示已售/销量为[具体数字]，传播范围较广/影响较大。]"
 
-投诉请求：
+**情形B：如果是公众号推文、资讯文章（无直接下单功能，侧重内容推广）：**
+"该企业通过认证“微信公众号”发布文章：[文章标题]，链接[URL] 该文章推广“[商品/服务名称]” [所属行业，如医疗服务/保健食品]，属[广告类型]，涉嫌违反[列举法律名称]发布违法广告。文章内容存在[具体违规行为描述]，明确表述[引用违规原文片段]，违反《[法律名称]》第[几]条禁止性规定；[如果是医疗广告且未审查/违规]同时该[类型]广告未经[相关部门]审查批准/擅自发布，违反《[法律名称]》第[几]条审查程序要求。[如果有传播数据，必须在此插入一句：经查，该内容显示阅读量/销量为[具体数字]，传播范围较广/影响较大。]"
+
+**通用投诉请求部分（紧接上述文案）：**
+"投诉请求：
 1. 请监管部门联系本人、涉事企业三方，协调配合处理此事；
-2. 鉴于涉案广告通过互联网公开发布，传播广泛，且内容涉及[填：人民群众生命健康/财产安全]，恳请贵局严格依法履职，予以立案查处，并在法定时限内告知案件调查进展及处理结果；
+2. 鉴于涉案广告通过互联网公开发布，传播广泛，且内容涉及[填：人民群众生命健康/财产安全]，我们恳请贵局严格依法履职，予以立案查处，并在法定时限内告知案件调查进展及处理结果；
 3. 请依法落实相关投诉奖励事项。
 [如果企业辩称是科普/软文，追加一句：根据《互联网广告管理办法》，通过知识介绍等形式推销商品或服务，构成商业广告，应当承担广告主责任。]"
 
@@ -121,7 +126,7 @@ export const analyzeContent = async (
   }
   
   if (mode === 'URL') {
-    promptText += `注意：这是来自链接的内容。如果是小程序链接（如#小程序://），请将其视为有效发布源。\n`;
+    promptText += `注意：这是来自链接的内容。如果是小程序链接（如#小程序://），请将其视为有效发布源。如果是淘宝/京东链接，请识别为电商平台内容。\n`;
   }
 
   promptText += `**重要指令 - 时间校验：**\n1. 请务必在文本或图片中寻找文章发布的具体日期（例如：2024-05-12，2023年8月等）。\n2. 当前日期是 ${currentDate}。计算发布日期与当前日期的间隔。\n3. 如果发布时间超过6个月（例如当前是2025年7月，文章是2024年12月之前发布的），必须将 JSON 中的 'isOldArticle' 字段设为 true。\n4. 如果是近期内容（6个月内），'isOldArticle' 为 false。\n5. 如果完全无法找到日期，'publicationDate' 填“未知”，'isOldArticle' 填 false。\n`;
@@ -169,38 +174,35 @@ export const analyzeContent = async (
   } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
     const errorMessage = error.message || error.toString();
-    
-    // Provide user-friendly messages for common errors
     if (errorMessage.includes("API key") || errorMessage.includes("403") || errorMessage.includes("400")) {
        throw new Error("API Key 无效或未授权。请检查 Netlify 环境变量配置是否正确。");
     }
-    
     throw new Error("AI 服务暂时不可用，请稍后重试。详细错误: " + errorMessage);
   }
 };
 
-// Precise Google Dorks for WeChat Public Platform
+// Precise Google Dorks for WeChat Public Platform & Mini Programs
 const RISK_SEARCH_QUERIES: Record<string, string[]> = {
   'MEDICAL': [
-    'site:mp.weixin.qq.com "根治" AND ("糖尿病" OR "高血压" OR "癌症") after:2024-01-01',
-    'site:mp.weixin.qq.com "治愈率" AND "祖传秘方" after:2024-01-01',
-    'site:mp.weixin.qq.com "签约治疗" AND "无效退款" after:2024-01-01',
-    'site:mp.weixin.qq.com "中药" AND "彻底治愈" after:2024-01-01',
+    'site:mp.weixin.qq.com "糖尿病" "根治" after:2024-01-01',
+    'site:mp.weixin.qq.com "高血压" "停药" after:2024-01-01',
+    'site:mp.weixin.qq.com "癌症" "治愈率" after:2024-01-01',
+    'site:mp.weixin.qq.com "祖传秘方" "无效退款" after:2024-01-01',
   ],
   'BEAUTY': [
-    'site:mp.weixin.qq.com "医美" AND "零风险" after:2024-01-01',
-    'site:mp.weixin.qq.com "减肥" AND "不反弹" AND "月瘦" after:2024-01-01',
-    'site:mp.weixin.qq.com "丰胸" AND "7天见效" after:2024-01-01',
+    'site:mp.weixin.qq.com "医美" "零风险" after:2024-01-01',
+    'site:mp.weixin.qq.com "减肥" "月瘦" "不反弹" after:2024-01-01',
+    'site:mp.weixin.qq.com "丰胸" "7天见效" after:2024-01-01',
   ],
   'FOOD': [
-    'site:mp.weixin.qq.com "保健食品" AND ("防癌" OR "抗癌" OR "治疗") after:2024-01-01',
-    'site:mp.weixin.qq.com "增高" AND "长高" AND "专利" after:2024-01-01',
-    'site:mp.weixin.qq.com "排毒" AND "清宿便" after:2024-01-01',
+    'site:mp.weixin.qq.com "保健食品" "治疗" after:2024-01-01',
+    'site:mp.weixin.qq.com "长高" "增高" "专利" after:2024-01-01',
+    'site:mp.weixin.qq.com "排毒" "清宿便" after:2024-01-01',
   ],
   'GENERAL': [
-    'site:mp.weixin.qq.com "全网第一" AND "销量冠军" after:2024-01-01',
-    'site:mp.weixin.qq.com "投资" AND "稳赚不赔" after:2024-01-01',
-    'site:mp.weixin.qq.com "顶级" AND "国家级" after:2024-01-01',
+    'site:mp.weixin.qq.com "全网第一" "销量冠军" after:2024-01-01',
+    'site:mp.weixin.qq.com "投资" "稳赚不赔" after:2024-01-01',
+    'site:mp.weixin.qq.com "国家级" "最高级" after:2024-01-01',
   ]
 };
 
@@ -214,14 +216,9 @@ export const discoverRisks = async (category: string = 'GENERAL'): Promise<Disco
   const selectedQuery = queries[Math.floor(Math.random() * queries.length)];
 
   const prompt = `
-    Please use Google Search to find 10 recent articles (preferably within the last 6 months) matching the following query:
-    Query: ${selectedQuery}
-
-    Objective: Identify articles on WeChat Public Platform (mp.weixin.qq.com) that potentially contain illegal advertising claims (e.g., "cure", "no rebound", "best", "guarantee").
-    
-    Output Requirement: 
-    Just list the search results naturally using the tool. I will extract the links from the metadata. 
-    You do NOT need to format the text output as JSON. Just provide a brief list in text.
+    Use Google Search to find 5-10 recent articles matching: ${selectedQuery}
+    Target: WeChat Official Account Articles (mp.weixin.qq.com) containing illegal advertising claims (e.g. "cure", "no rebound", "guarantee").
+    Return the search results list naturally.
   `;
 
   try {
@@ -233,8 +230,7 @@ export const discoverRisks = async (category: string = 'GENERAL'): Promise<Disco
       }
     });
 
-    // CRITICAL FIX: Rely 100% on Grounding Metadata for real links.
-    // The text response from LLMs often hallucinates URLs, but groundingChunks are real search results.
+    // Extract real links from grounding metadata
     const groundingChunks = result.candidates?.[0]?.groundingMetadata?.groundingChunks;
     const directResults: DiscoveryItem[] = [];
 
@@ -242,8 +238,8 @@ export const discoverRisks = async (category: string = 'GENERAL'): Promise<Disco
       groundingChunks.forEach((chunk: any) => {
         if (chunk.web && chunk.web.uri && chunk.web.title) {
           const uri = chunk.web.uri;
-          // Filtering for WeChat links specifically as requested, but allowing others if relevant
-          if (uri.includes('mp.weixin.qq.com') || uri.includes('weixin')) {
+          // Filter for WeChat or other relevant platforms
+          if (uri.includes('weixin.qq.com') || uri.includes('qq.com')) {
              directResults.push({
                title: chunk.web.title,
                url: uri,
@@ -255,14 +251,14 @@ export const discoverRisks = async (category: string = 'GENERAL'): Promise<Disco
       });
     }
 
-    // Deduplicate results
+    // Deduplicate
     const uniqueResults = directResults.filter((item, index, self) =>
       index === self.findIndex((t) => (
         t.url === item.url
       ))
     );
 
-    return uniqueResults.slice(0, 15);
+    return uniqueResults.slice(0, 10);
 
   } catch (error: any) {
     console.error("Discovery Error:", error);
