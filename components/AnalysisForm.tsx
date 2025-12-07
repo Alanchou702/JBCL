@@ -164,8 +164,10 @@ export const AnalysisForm: React.FC<AnalysisFormProps> = ({ onAnalyze, isLoading
             <ScanSearch className="w-4 h-4 text-indigo-500" />
             图片/截图佐证 (支持多图)
           </label>
-          <p className="text-xs text-slate-500 mb-4">
-             AI将自动识别广告语及销量数据。<b>强烈建议上传【商品参数页】或【产品背标】截图</b>，以便AI识别“SC”生产许可证号，从而精准判断是“普通食品”还是“保健品/药品”。
+          <p className="text-xs text-slate-500 mb-4 bg-orange-50 border-l-2 border-orange-400 p-2">
+             AI将自动识别广告语及销量数据。
+             <b className="text-orange-700 block mt-1">⚠️ 必须上传【商品参数页】或【产品背标】截图</b>
+             <span className="text-orange-600">以便AI查看生产许可证号（SC开头），精准判定商家是否用“普通食品”冒充“保健品/药品”销售。</span>
           </p>
           
           <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
