@@ -122,13 +122,13 @@ export const AnalysisForm: React.FC<AnalysisFormProps> = ({ onAnalyze, isLoading
                   type="text"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  placeholder="示例：https://mp.weixin.qq.com/... 或 #小程序://..."
+                  placeholder="支持淘宝/京东/拼多多链接，或微信公众号/小程序路径"
                   className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-mono text-sm bg-slate-50/50"
                   required
                 />
                 <LinkIcon className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" />
               </div>
-              <p className="text-xs text-slate-400 mt-2 ml-1">支持微信公众号文章链接、小程序路径（如 #小程序://...）等</p>
+              <p className="text-xs text-slate-400 mt-2 ml-1">支持：#小程序://...，淘宝/京东/拼多多商品链接等</p>
             </div>
 
             <div className="bg-blue-50/50 text-blue-800 p-5 rounded-xl flex items-start gap-4 text-sm border border-blue-100">
@@ -165,7 +165,7 @@ export const AnalysisForm: React.FC<AnalysisFormProps> = ({ onAnalyze, isLoading
             图片/截图佐证 (支持多图)
           </label>
           <p className="text-xs text-slate-500 mb-4">
-             AI将自动识别图片中的广告语、销量数据及发布日期。建议上传包含<b>关键承诺</b>及<b>数据</b>的截图。
+             AI将自动识别广告语及销量数据。<b>强烈建议上传【商品参数页】或【产品背标】截图</b>，以便AI识别“SC”生产许可证号，从而精准判断是“普通食品”还是“保健品/药品”。
           </p>
           
           <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
