@@ -13,54 +13,60 @@ const SYSTEM_INSTRUCTION = `
 你是一位专业的中国广告合规校验专家。
 你的任务是依据最新的中国法律法规（包括但不限于《中华人民共和国广告法》、《中华人民共和国中医药法》、《互联网广告管理办法》、《医疗广告管理办法》、《食品安全法》等），对用户提供的广告文案、图片或链接内容进行严格审核。
 
-**关键步骤：产品属性判定（必须优先执行）**
-在分析广告语之前，请务必根据文本或图片（特别是商品参数表、瓶身背标）判断产品属性：
-1. **普通食品（SC开头生产许可证）**：
-   - 严禁宣传任何保健功能（如“补肾”、“壮阳”、“提高免疫力”、“改善睡眠”、“延时”、“增硬”）。
-   - **严查成分暗示**：对于含有“鹿血”、“人参”、“牡蛎”、“黄精”等成分的普通食品，如果出现“做回真男人”、“硬度”、“时长”、“根治”等暗示性功能或治疗功效的词汇，必须直接定性为**“普通食品违法宣传保健/治疗功效”**。
-   - **判定规则**：如果图片中显示“SC”开头的许可证号，但广告语中出现上述功效宣传，这是严重违规（虚假宣传）。
-2. **保健食品（“蓝帽子”标志，国食健字/食健备G/J）**：
-   - 允许宣传核准的保健功能，但必须标注“本品不能代替药物”。
-   - 严禁宣传治疗疾病。
-3. **药品/医疗器械（国药准字/械字号）**：
-   - 必须经过审批，且严禁断言功效安全性。
+**核心校验逻辑：宣传一致性比对 (Consistency Validation) —— 必须优先执行**
+在分析时，必须将“图片中识别的真实信息”与“广告宣传文案”进行严格比对，查找“货不对板”的严重违规：
+
+1. **提取真相（基于图片证据）**：
+   - 从商品参数表、背标中提取**“产品类型”**（如：固体饮料、压片糖果、代用茶、其他食品）。
+   - 提取**“核准功效”**（如果是蓝帽子保健品，提取其核准的具体功能，如“增强免疫力”）。
+
+2. **比对宣传（基于文案/广告图）**：
+   - 提取广告中的**“宣传功效”**（如：补肾壮阳、延时、增硬、抗癌、降三高）。
+
+3. **判定违规（逻辑举例）**：
+   - **情形1（跨类别宣传）**：如果真实属性是**“固体饮料/压片糖果/代用茶”**（普通食品），但宣传中出现**“补肾”、“壮阳”、“改善性功能”、“延时”**等内容 -> **定性为：普通食品假冒保健/药品宣传，属严重虚假广告。**
+   - **情形2（功能篡改）**：如果真实属性是**“保健食品”**且核准功能仅为**“增强免疫力”**，但宣传中却暗示**“男性壮阳”、“提升性能力”** -> **定性为：擅自篡改核准功能，虚假宣传。**
+   - **情形3（无中生有）**：如果产品介绍全是“高科技/专利成分”，但图片参数表中仅显示普通配料 -> **定性为：虚假宣传成分功效。**
+
+**违规判定词库（普通食品/保健品严禁使用）：**
+- 壮阳、补肾、延时、增硬、举而不坚、阳痿早泄
+- 根治、治愈、彻底解决、不反弹、0风险
+- 祖传秘方、老中医、纯天然（若无依据）
+
+**关键步骤：产品属性判定**
+1. **普通食品（SC开头生产许可证）**：严禁宣传任何保健/治疗功能。
+2. **保健食品（“蓝帽子”标志）**：仅限宣传核准功能，必须标明“本品不能代替药物”。
+3. **药品/医疗器械**：必须严格依照审批说明书宣传。
 
 **核心能力要求：**
-1. **多模态分析**：用户可能会提供图片（如海报、截图、商品详情页）。你必须具备强大的OCR能力，仔细识别图片中的所有文字。**特别注意查找图片中的“生产许可证编号”、“产品标准号”以确定产品真实属性。**
-2. **依据事实**：严格基于提供的文本和图片内容分析，禁止臆造。
-3. **法律严谨**：引用法律条款必须准确。
-4. **数据佐证（重要）**：务必在文本或图片中查找**阅读量、转发量、点赞数、销量（如“已售X件”、“X人付款”、“10万+评价”）**等关键传播数据。这些数据是证明违法广告危害程度的重要证据。
-5. **时效性校验**：务必在文章/图片中查找发布日期。
+1. **多模态分析**：务必OCR识别图片中的**“生产许可证编号”、“产品标准号”**以锁定产品真实属性。
+2. **数据佐证**：务必提取**销量、阅读量、评价数**（如“已售10万+”）作为危害程度证据。
+3. **时效性校验**：查找内容发布日期。
 
-**判断非广告内容（重要）**：
-- 如果内容仅仅是科普知识、新闻报道、个人生活分享，且**完全没有**包含购买链接、二维码、具体的商品推荐、店铺地址或“咨询购买”等引导销售的信息，请务必将 \`isAd\` 设为 \`false\`。
-- **不要强行判定为广告**。如果 \`isAd\` 为 \`false\`，或者没有发现明显违规点，请在 summary 中说明理由（如“该内容为纯科普文章，未发现商业推广行为”），而**绝不要**生成投诉举报文案。
-
-**违规点提取要求**：
-- 如果违规内容出现在图片中，请在“原文出处”中标注“（图片内容）”。
-- 如果未发现明显违规，violations 数组应为空。
+**判断非广告内容**：
+- 纯科普、新闻、个人分享且**无**购买引导（链接/二维码/店铺名） -> \`isAd: false\`。
+- 不要强行判定为广告。
 
 **总结文案（举报文案）格式严格要求**：
-仅当 \`isAd\` 为 \`true\` 且发现违规时，生成以下格式文案。**总字数严格控制在450字以内**。
-请根据**内容载体类型**选择合适的开头模板，不要混淆“文章”与“商品页”：
+仅当 \`isAd\` 为 \`true\` 且发现违规时，生成以下格式文案。**总字数控制在450字以内**。
 
-**情形A：如果是电商平台（淘宝/京东/拼多多/抖音小店）、微信小程序商城、店铺商品详情页（通常含价格、购物车、立即购买按钮，或者链接是#小程序://开头）：**
-"该企业在认证的“[平台名称，如微信小程序/淘宝/京东/拼多多]”店铺内销售商品“[商品名称]”（商品/店铺链接：[链接/路径]），其商品详情页/宣传页介绍内容属[广告类型，如食品/保健品]广告，涉嫌违反[列举法律名称]发布违法广告。该商品实际上为[产品属性，如普通食品/消毒用品]，但页面内容存在[具体违规行为描述，如违法宣传保健治疗功效]，明确表述[引用违规原文片段]，违反《[法律名称]》第[几]条禁止性规定；[如果是医疗广告且未审查/违规]同时该[类型]广告未经[相关部门]审查批准/擅自发布，违反《[法律名称]》第[几]条审查程序要求。[如果有传播数据，必须在此插入一句：经查，该商品页面显示已售/销量为[具体数字]，传播范围较广/影响较大。]"
+**情形A：电商/小程序/商品详情页（含购买功能/价格）：**
+"该企业在认证的“[平台名称，如微信小程序/京东/淘宝]”店铺内销售商品“[商品名称]”（商品链接/路径：[链接/路径]），其宣传内容属[广告类型]广告，涉嫌违反[法律名称]发布违法广告。
+**经比对，该商品实际属性为[真实属性，如固体饮料/普通食品]，核准/实际功能仅为[真实功能]，但商家在详情页中宣称其具有[虚假宣传的功能，如补肾壮阳/治疗疾病]功效，属于典型的‘挂羊头卖狗肉’式虚假宣传，严重欺骗消费者。**
+上述内容违反《[法律名称]》第[几]条禁止性规定。[如涉及医疗]同时未经审查擅自发布。
+[数据证据]：经查，该商品页面显示已售/销量为[具体数字]，传播范围较广。"
 
-**情形B：如果是公众号推文、资讯文章（无直接下单功能，侧重内容推广）：**
-"该企业通过认证“微信公众号”发布文章：[文章标题]，链接[URL] 该文章推广“[商品/服务名称]” [所属行业，如医疗服务/保健食品]，属[广告类型]，涉嫌违反[列举法律名称]发布违法广告。文章内容存在[具体违规行为描述]，明确表述[引用违规原文片段]，违反《[法律名称]》第[几]条禁止性规定；[如果是医疗广告且未审查/违规]同时该[类型]广告未经[相关部门]审查批准/擅自发布，违反《[法律名称]》第[几]条审查程序要求。[如果有传播数据，必须在此插入一句：经查，该内容显示阅读量/销量为[具体数字]，传播范围较广/影响较大。]"
+**情形B：公众号推文/资讯文章（侧重内容）：**
+"该企业通过认证“微信公众号”发布文章：[文章标题]，链接[URL] 该文章推广“[商品/服务]”，涉嫌违反[法律名称]发布违法广告。
+文章内容存在[具体违规行为]，明确表述[引用原文]，违反《[法律名称]》第[几]条规定。
+[数据证据]：经查，该内容阅读量为[具体数字]。"
 
-**通用投诉请求部分（紧接上述文案）：**
+**通用投诉请求（紧接上述文案）：**
 "投诉请求：
 1. 请监管部门联系本人、涉事企业三方，协调配合处理此事；
-2. 鉴于涉案广告通过互联网公开发布，传播广泛，且内容涉及[填：人民群众生命健康/财产安全]，我们恳请贵局严格依法履职，予以立案查处，并在法定时限内告知案件调查进展及处理结果；
+2. 鉴于涉案广告通过互联网公开发布，且存在[货不对板/夸大功效]欺诈嫌疑，涉及[人民群众生命健康/财产安全]，恳请贵局严格依法履职，予以立案查处，并在法定时限内告知结果；
 3. 请依法落实相关投诉奖励事项。
-[如果企业辩称是科普/软文，追加一句：根据《互联网广告管理办法》，通过知识介绍等形式推销商品或服务，构成商业广告，应当承担广告主责任。]"
-
-注意：
-1. 模板中的[ ]内容请根据实际分析结果替换。
-2. **必须在文案中回填具体的链接**。如果是小程序路径（如#小程序://...），请直接填入。如果用户未提供链接，填“未提供”。
-3. 投诉请求第2点非常重要：请根据广告类型选择“人民群众生命健康”（针对医疗/食品/美妆）或“财产安全”（针对理财/投资）。
+[如辩称科普]：通过知识介绍推销商品构成商业广告，应承担责任。"
 
 **Response Schema**:
 Please return the result in JSON format matching the schema provided.
@@ -83,25 +89,25 @@ const responseSchema: Schema = {
       items: {
         type: Type.OBJECT,
         properties: {
-          type: { type: Type.STRING, description: "Type of violation (e.g., 虚假宣传, 夸大功效, 普通食品宣传保健功能)" },
-          law: { type: Type.STRING, description: "Specific law and clause violated (e.g., 《广告法》第十六条, 《食品安全法》第七十三条)" },
-          explanation: { type: Type.STRING, description: "Detailed explanation of why it is a violation." },
-          originalText: { type: Type.STRING, description: "The specific text segment from the input that constitutes the violation." },
+          type: { type: Type.STRING, description: "Type of violation (e.g., 虚假宣传-货不对板, 夸大功效)" },
+          law: { type: Type.STRING, description: "Specific law violated" },
+          explanation: { type: Type.STRING, description: "Explanation of the inconsistency or violation." },
+          originalText: { type: Type.STRING, description: "The specific text segment." },
         },
         required: ["type", "law", "explanation", "originalText"],
       },
     },
     summary: {
       type: Type.STRING,
-      description: "The formal summary/report text strictly following the requested format. If not an ad or no violations, explain why.",
+      description: "The formal summary/report text strictly following the requested format.",
     },
     publicationDate: {
       type: Type.STRING,
-      description: "The publication date of the content found in text or image (format YYYY-MM-DD), or '未知'.",
+      description: "YYYY-MM-DD or '未知'.",
     },
     isOldArticle: {
       type: Type.BOOLEAN,
-      description: "True if the publication date is more than 6 months prior to today's date.",
+      description: "True if > 6 months old.",
     },
   },
   required: ["isAd", "productName", "violations", "summary", "isOldArticle"],
@@ -109,7 +115,7 @@ const responseSchema: Schema = {
 
 export const analyzeContent = async (
   text: string, 
-  images: string[], // Base64 strings
+  images: string[], 
   mode: 'TEXT' | 'URL',
   sourceUrl: string = ''
 ): Promise<AnalysisResult> => {
@@ -120,36 +126,20 @@ export const analyzeContent = async (
   const modelId = "gemini-2.5-flash"; 
   const currentDate = new Date().toLocaleDateString('zh-CN');
   
-  // Construct the prompt parts
   const parts: any[] = [];
   
   let promptText = `当前日期：${currentDate}\n请分析以下广告内容：\n\n`;
   
-  if (text) {
-    promptText += `【文本内容】：\n${text}\n\n`;
-  } else {
-    promptText += `【文本内容】：(未提供文本，请主要基于图片分析)\n\n`;
-  }
+  if (text) promptText += `【文本内容】：\n${text}\n\n`;
+  else promptText += `【文本内容】：(未提供文本，重点基于图片分析)\n\n`;
   
-  if (sourceUrl) {
-    promptText += `相关推广链接/出处: ${sourceUrl}\n`;
-  } else {
-    promptText += `相关推广链接/出处: (未提供，请在模板中填写"未提供链接")\n`;
-  }
+  if (sourceUrl) promptText += `相关推广链接: ${sourceUrl}\n`;
+  else promptText += `相关推广链接: (未提供，填“未提供链接”)\n`;
   
-  if (mode === 'URL') {
-    promptText += `注意：这是来自链接的内容。如果是小程序链接（如#小程序://），请将其视为有效发布源。如果是淘宝/京东/拼多多链接，请识别为电商平台内容。\n`;
-  }
-
-  promptText += `**重要指令 - 时间校验：**\n1. 请务必在文本或图片中寻找文章发布的具体日期（例如：2024-05-12，2023年8月等）。\n2. 当前日期是 ${currentDate}。计算发布日期与当前日期的间隔。\n3. 如果发布时间超过6个月（例如当前是2025年7月，文章是2024年12月之前发布的），必须将 JSON 中的 'isOldArticle' 字段设为 true。\n4. 如果是近期内容（6个月内），'isOldArticle' 为 false。\n5. 如果完全无法找到日期，'publicationDate' 填“未知”，'isOldArticle' 填 false。\n`;
-
-  if (images.length > 0) {
-    promptText += `\n\n【图片分析要求】：\n已上传 ${images.length} 张图片。请务必仔细阅读图片中的所有文字，识别图片中的视觉符号。\n**特别指令：请优先识别图片中的“产品参数表”、“背标”、“生产许可证号”（SC开头）**。如果发现产品是SC开头的普通食品，但图片文案中出现了“补肾”、“壮阳”、“治疗”、“延时”、“增硬”等医疗或保健功效词汇，请务必作为重点违规进行提取！\n同时请识别图片中的数字信息，如阅读量、转发量、销量（已售件数），并在总结中体现。`;
-  }
+  promptText += `**特别指令**：\n1. 仔细识别图片中的**参数表/背标**，提取“产品类型”和“许可证号”。\n2. 将其与广告文案中的“功效宣传”进行对比。如果产品是**固体饮料/糖果/代用茶**，但宣传**补肾/壮阳/延时/治疗**，必须定性为“虚假宣传-货不对板”。\n3. 检查发布日期，当前是 ${currentDate}，判断是否超过6个月。\n`;
 
   parts.push({ text: promptText });
 
-  // Add images to parts
   for (const base64Image of images) {
     const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp|heic|heif);base64,/, "");
     parts.push({
@@ -163,12 +153,7 @@ export const analyzeContent = async (
   try {
     const result = await ai.models.generateContent({
       model: modelId,
-      contents: [
-        {
-          role: 'user',
-          parts: parts
-        }
-      ],
+      contents: [{ role: 'user', parts: parts }],
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         responseMimeType: "application/json",
@@ -178,84 +163,67 @@ export const analyzeContent = async (
     });
 
     if (result.text) {
-      const parsedData = JSON.parse(result.text);
-      return parsedData as AnalysisResult;
+      return JSON.parse(result.text) as AnalysisResult;
     } else {
-      throw new Error("No response text received from AI.");
+      throw new Error("No response text received.");
     }
   } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
     const errorMessage = error.message || error.toString();
-    if (errorMessage.includes("API key") || errorMessage.includes("403") || errorMessage.includes("400")) {
-       throw new Error("API Key 无效或未授权。请检查 Netlify 环境变量配置是否正确。");
+    if (errorMessage.includes("API key")) {
+       throw new Error("API Key 无效或未授权。请检查 Netlify 配置。");
     }
-    throw new Error("AI 服务暂时不可用，请稍后重试。详细错误: " + errorMessage);
+    throw new Error("AI 分析服务暂时中断: " + errorMessage);
   }
 };
 
-// Precise Google Dorks for WeChat Public Platform & Mini Programs
 const RISK_SEARCH_QUERIES: Record<string, string[]> = {
   'MEDICAL': [
-    'site:mp.weixin.qq.com "糖尿病" "根治" after:2024-01-01',
+    'site:mp.weixin.qq.com "糖尿病" "彻底根治" after:2024-01-01',
     'site:mp.weixin.qq.com "高血压" "停药" after:2024-01-01',
-    'site:mp.weixin.qq.com "癌症" "治愈率" after:2024-01-01',
-    'site:mp.weixin.qq.com "祖传秘方" "无效退款" after:2024-01-01',
+    'site:mp.weixin.qq.com "男性" "壮阳" "延时" after:2024-01-01',
   ],
   'BEAUTY': [
-    'site:mp.weixin.qq.com "医美" "零风险" after:2024-01-01',
-    'site:mp.weixin.qq.com "减肥" "月瘦" "不反弹" after:2024-01-01',
-    'site:mp.weixin.qq.com "丰胸" "7天见效" after:2024-01-01',
+    'site:mp.weixin.qq.com "医美" "0风险" after:2024-01-01',
+    'site:mp.weixin.qq.com "减肥" "不运动" "月瘦" after:2024-01-01',
   ],
   'FOOD': [
     'site:mp.weixin.qq.com "保健食品" "治疗" after:2024-01-01',
-    'site:mp.weixin.qq.com "长高" "增高" "专利" after:2024-01-01',
-    'site:mp.weixin.qq.com "排毒" "清宿便" after:2024-01-01',
+    'site:mp.weixin.qq.com "长高" "增高" after:2024-01-01',
   ],
   'GENERAL': [
-    'site:mp.weixin.qq.com "全网第一" "销量冠军" after:2024-01-01',
-    'site:mp.weixin.qq.com "投资" "稳赚不赔" after:2024-01-01',
-    'site:mp.weixin.qq.com "国家级" "最高级" after:2024-01-01',
+    'site:mp.weixin.qq.com "销量第一" "唯一" after:2024-01-01',
+    'site:mp.weixin.qq.com "投资" "包赚" after:2024-01-01',
   ]
 };
 
 export const discoverRisks = async (category: string = 'GENERAL'): Promise<DiscoveryItem[]> => {
-  if (!apiKey) {
-    throw new Error("系统未检测到 API Key。请在部署平台（如 Netlify）的环境变量中配置 'API_KEY'。");
-  }
+  if (!apiKey) throw new Error("API Key Missing");
 
   const modelId = "gemini-2.5-flash"; 
   const queries = RISK_SEARCH_QUERIES[category] || RISK_SEARCH_QUERIES['GENERAL'];
   const selectedQuery = queries[Math.floor(Math.random() * queries.length)];
 
-  const prompt = `
-    Use Google Search to find 5-10 recent articles matching: ${selectedQuery}
-    Target: WeChat Official Account Articles (mp.weixin.qq.com) containing illegal advertising claims (e.g. "cure", "no rebound", "guarantee").
-    Return the search results list naturally.
-  `;
+  const prompt = `Use Google Search to find 5 recent WeChat articles for: ${selectedQuery}. Focus on illegal ad claims.`;
 
   try {
     const result = await ai.models.generateContent({
       model: modelId,
       contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-      }
+      config: { tools: [{ googleSearch: {} }] }
     });
 
-    // Extract real links from grounding metadata
     const groundingChunks = result.candidates?.[0]?.groundingMetadata?.groundingChunks;
     const directResults: DiscoveryItem[] = [];
 
-    if (groundingChunks && groundingChunks.length > 0) {
+    if (groundingChunks) {
       groundingChunks.forEach((chunk: any) => {
-        if (chunk.web && chunk.web.uri && chunk.web.title) {
-          const uri = chunk.web.uri;
-          // Filter for WeChat or other relevant platforms
-          if (uri.includes('weixin.qq.com') || uri.includes('qq.com')) {
+        if (chunk.web?.uri && chunk.web?.title) {
+          if (chunk.web.uri.includes('qq.com')) {
              directResults.push({
                title: chunk.web.title,
-               url: uri,
-               snippet: "来源：微信公众平台/搜一搜 (智能匹配潜在违规词)",
+               url: chunk.web.uri,
+               snippet: "来源：微信搜一搜 (智能风险匹配)",
                source: "微信公众号"
              });
           }
@@ -263,21 +231,13 @@ export const discoverRisks = async (category: string = 'GENERAL'): Promise<Disco
       });
     }
 
-    // Deduplicate
     const uniqueResults = directResults.filter((item, index, self) =>
-      index === self.findIndex((t) => (
-        t.url === item.url
-      ))
+      index === self.findIndex((t) => t.url === item.url)
     );
 
     return uniqueResults.slice(0, 10);
-
-  } catch (error: any) {
+  } catch (error) {
     console.error("Discovery Error:", error);
-    const errorMessage = error.message || error.toString();
-    if (errorMessage.includes("API key")) {
-         throw new Error("API Key 无效或未配置。");
-    }
     return [];
   }
 };

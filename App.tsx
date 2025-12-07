@@ -27,6 +27,7 @@ const App: React.FC = () => {
   const [prefilledUrl, setPrefilledUrl] = useState<string>('');
 
   useEffect(() => {
+    console.log("AdGuardian App Loaded - Version 2.5 check");
     try {
       const saved = localStorage.getItem(HISTORY_KEY);
       if (saved) {
@@ -55,7 +56,6 @@ const App: React.FC = () => {
   const handleAnalyze = async (content: string, images: string[], mode: InputMode, url?: string) => {
     setState({ isLoading: true, error: null, result: null });
     
-    // Check for duplicate in history (simple check)
     const isDuplicate = history.some(item => {
         if (mode === InputMode.URL && url) {
             return item.result.summary.includes(url);
@@ -66,12 +66,9 @@ const App: React.FC = () => {
     try {
       const result = await analyzeContent(content, images, mode, url);
       
-      // Inject duplicate flag if needed (though typically this would be done before analysis to warn user, 
-      // but here we just flag the result for display)
-      if (isDuplicate) {
-          // We can't easily modify the result object here without type issues if not defined, 
-          // but let's proceed. The ResultDisplay can handle logic if we passed it separate prop.
-          // For now, let's just use the result as is from Gemini.
+      // Inject duplicate flag if necessary
+      if (isDuplicate && result) {
+         result.productName = `${result.productName} (重复)`; // Marker
       }
 
       setState({ isLoading: false, error: null, result });
@@ -110,7 +107,7 @@ const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Auth Guard
+  // Auth Guard: Force login screen if not authenticated
   if (!isAuthenticated) {
     return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
   }

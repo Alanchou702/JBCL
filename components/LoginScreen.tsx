@@ -11,6 +11,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Validate PIN: GG (case insensitive)
     if (pin.trim().toUpperCase() === 'GG') {
       onLogin();
     } else {
@@ -34,7 +35,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             AdGuardian <span className="text-indigo-500">CN</span>
           </h1>
           <p className="text-slate-400 font-medium tracking-widest text-xs uppercase">
-            广告合规智能监管系统
+            广告合规智能监管系统 (安全登录)
           </p>
         </div>
 
