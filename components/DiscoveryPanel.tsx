@@ -1,38 +1,18 @@
 import React, { useState } from 'react';
 import { DiscoveryItem } from '../types';
 import { discoverRisks } from '../services/geminiService';
-import { Search, ExternalLink, ShieldAlert, Loader2, ArrowRight, RefreshCw, Pill, Stethoscope, Utensils, Zap } from 'lucide-react';
+import { Search, ExternalLink, ShieldAlert, Loader2, ArrowRight, RefreshCw, Stethoscope, Utensils, Zap, Sparkles, AlertTriangle } from 'lucide-react';
 
 interface DiscoveryPanelProps {
   onAnalyzeItem: (url: string) => void;
 }
 
 const CATEGORIES = [
-  { id: 'MEDICAL', name: '医药/医疗', icon: Stethoscope, color: 'text-red-600 bg-red-50' },
-  { id: 'BEAUTY', name: '医美/美妆', icon: SparklesIcon, color: 'text-pink-600 bg-pink-50' },
-  { id: 'FOOD', name: '食品/保健', icon: Utensils, color: 'text-green-600 bg-green-50' },
-  { id: 'GENERAL', name: '通用/金融', icon: Zap, color: 'text-blue-600 bg-blue-50' },
+  { id: 'MEDICAL', name: '医药/医疗', icon: Stethoscope, color: 'text-rose-600 bg-rose-50 border-rose-100' },
+  { id: 'BEAUTY', name: '医美/美妆', icon: Sparkles, color: 'text-purple-600 bg-purple-50 border-purple-100' },
+  { id: 'FOOD', name: '食品/保健', icon: Utensils, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+  { id: 'GENERAL', name: '通用/金融', icon: Zap, color: 'text-blue-600 bg-blue-50 border-blue-100' },
 ];
-
-// Helper for icon since Lucide imports might vary
-function SparklesIcon(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
-    </svg>
-  )
-}
 
 export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({ onAnalyzeItem }) => {
   const [items, setItems] = useState<DiscoveryItem[]>([]);
@@ -44,9 +24,6 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({ onAnalyzeItem })
     setIsLoading(true);
     setCurrentCategory(category);
     setHasSearched(true);
-    
-    // Clear previous if switching category manually, otherwise keep for "load more" effect?
-    // Let's replace for now to keep it clean, user can always analyze and go back.
     setItems([]); 
 
     try {
@@ -54,55 +31,49 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({ onAnalyzeItem })
       setItems(results);
     } catch (error) {
       console.error("Discovery failed", error);
-      alert("搜索失败，请稍后重试。");
+      alert("搜索服务暂时繁忙，请稍后重试。");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleAutoPatrol = async () => {
-    setIsLoading(true);
-    setHasSearched(true);
-    setItems([]);
-    
-    // Cycle through categories or pick random ones to fill list
-    // To be efficient, we'll pick a random category
+    // Pick a random category to simulate "Patrol"
     const randomCat = CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
-    setCurrentCategory(randomCat.id);
-    
-    try {
-      const results = await discoverRisks(randomCat.id);
-      setItems(results);
-    } catch (error) {
-       alert("巡查失败，网络连接可能不稳定。");
-    } finally {
-      setIsLoading(false);
-    }
+    handleSearch(randomCat.id);
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-[500px]">
-      <div className="p-6 border-b border-slate-200 bg-slate-50">
-         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-[600px] flex flex-col">
+      {/* Header Section */}
+      <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
-               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                 <ShieldAlert className="w-6 h-6 text-blue-600" />
-                 全网风险广告自动巡查
+               <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                 <ShieldAlert className="w-6 h-6 text-indigo-600" />
+                 风险广告自动巡查系统
                </h3>
-               <p className="text-sm text-slate-500 mt-1">自动检索最近6个月内的违规广告（涵盖微信公众号、小程序推广等）</p>
+               <p className="text-sm text-slate-500 mt-2">
+                 智能检索全网（微信公众号/小程序）近6个月内的疑似违规内容。
+               </p>
             </div>
+            
             <button
               onClick={handleAutoPatrol}
               disabled={isLoading}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 transition-colors shadow-sm text-sm font-medium whitespace-nowrap"
+              className={`px-6 py-3 rounded-lg flex items-center gap-2 transition-all font-medium shadow-sm hover:shadow-md ${
+                isLoading 
+                ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
+                : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+              }`}
             >
               {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              {isLoading ? "智能巡查中..." : "开始全网巡查"}
+              {isLoading ? "系统正在巡查..." : "开始全网巡查"}
             </button>
          </div>
 
-         {/* Category Filter Pills */}
-         <div className="flex flex-wrap gap-2">
+         {/* Category Filters */}
+         <div className="flex flex-wrap gap-3 mt-6">
             {CATEGORIES.map(cat => {
               const Icon = cat.icon;
               const isActive = currentCategory === cat.id;
@@ -111,13 +82,13 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({ onAnalyzeItem })
                   key={cat.id}
                   onClick={() => handleSearch(cat.id)}
                   disabled={isLoading}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
                     isActive 
-                      ? 'bg-white border-blue-300 shadow-sm text-blue-700 ring-2 ring-blue-100' 
-                      : 'bg-slate-100 border-transparent text-slate-500 hover:bg-white hover:border-slate-300'
+                      ? `${cat.color} ring-1 ring-offset-1 ring-offset-white ${cat.color.replace('text-', 'ring-')}` 
+                      : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
                   }`}
                 >
-                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
+                  <Icon className="w-4 h-4" />
                   {cat.name}
                 </button>
               )
@@ -125,85 +96,103 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({ onAnalyzeItem })
          </div>
       </div>
 
-      <div className="p-0">
+      {/* Results Area */}
+      <div className="flex-1 bg-slate-50/30">
         {isLoading && (
-          <div className="py-20 text-center text-slate-400">
-            <Loader2 className="w-10 h-10 animate-spin mx-auto mb-4 text-blue-500" />
-            <p className="font-medium text-slate-600">AI 正在深度检索 {CATEGORIES.find(c=>c.id === currentCategory)?.name} 类违规线索...</p>
-            <p className="text-xs mt-2 max-w-xs mx-auto">正在分析微信公众号文章、小程序推广页及相关评论数据...</p>
+          <div className="h-full flex flex-col items-center justify-center py-20 text-slate-400 space-y-4">
+            <div className="relative">
+              <div className="absolute inset-0 bg-indigo-100 rounded-full animate-ping opacity-75"></div>
+              <div className="relative bg-white p-4 rounded-full shadow-sm border border-indigo-100">
+                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+              </div>
+            </div>
+            <div className="text-center">
+              <p className="font-medium text-slate-700 text-lg">AI 正在深度扫描 {CATEGORIES.find(c=>c.id === currentCategory)?.name} 领域</p>
+              <p className="text-sm mt-1 max-w-sm mx-auto">正在分析微信公众号文章标题、摘要及关键词匹配度...</p>
+            </div>
           </div>
         )}
 
         {!isLoading && hasSearched && items.length === 0 && (
-          <div className="py-20 text-center text-slate-400">
-            <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-               <RefreshCw className="w-8 h-8 text-slate-300" />
+          <div className="h-full flex flex-col items-center justify-center py-20 text-slate-400">
+            <div className="bg-slate-100 p-6 rounded-full mb-4">
+               <RefreshCw className="w-10 h-10 text-slate-300" />
             </div>
-            <p className="text-slate-600 font-medium">当前分类下暂未发现高风险线索</p>
-            <p className="text-xs mt-2">建议切换分类或点击“开始全网巡查”重试</p>
+            <h4 className="text-lg font-medium text-slate-700">暂未发现高风险线索</h4>
+            <p className="text-sm mt-2 mb-6">当前分类下未检索到近期明显的违规广告内容。</p>
+            <button 
+              onClick={() => handleSearch(currentCategory)}
+              className="text-indigo-600 hover:text-indigo-800 font-medium text-sm flex items-center gap-1"
+            >
+              <RefreshCw className="w-3 h-3" /> 尝试重新搜索
+            </button>
           </div>
         )}
         
         {!isLoading && !hasSearched && (
-           <div className="py-20 text-center text-slate-400">
-             <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-                <Search className="w-8 h-8 text-blue-400" />
+           <div className="h-full flex flex-col items-center justify-center py-24 text-center px-4">
+             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6 rotate-3 transform hover:rotate-0 transition-transform duration-500">
+                <ShieldAlert className="w-16 h-16 text-indigo-500" />
              </div>
-             <p className="font-medium text-slate-700">点击上方按钮开始自动寻找违法违规线索</p>
-             <p className="text-xs mt-2 text-slate-400">支持医药、医美、食品保健等重点领域专项排查</p>
+             <h3 className="text-xl font-bold text-slate-800 mb-2">准备就绪</h3>
+             <p className="text-slate-500 max-w-md mx-auto mb-8">
+               点击“开始全网巡查”或选择特定分类，系统将自动检索并识别潜在的违法广告线索。
+             </p>
            </div>
         )}
 
-        {items.length > 0 && (
-           <div className="bg-yellow-50 px-4 py-2 border-b border-yellow-100 text-xs text-yellow-800 flex items-center gap-2">
-              <ShieldAlert className="w-3.5 h-3.5" />
-              <span>发现 {items.length} 条疑似违规线索（仅供参考，请以实际校验为准）</span>
-           </div>
-        )}
+        {items.length > 0 && !isLoading && (
+          <div className="p-4 space-y-4">
+             <div className="flex items-center justify-between px-2">
+                <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 px-3 py-1.5 rounded-md border border-amber-100">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span>已发现 {items.length} 条疑似违规线索（仅供参考）</span>
+                </div>
+                <button 
+                  onClick={() => handleSearch(currentCategory)} 
+                  className="text-xs text-slate-500 hover:text-indigo-600 flex items-center gap-1 transition-colors"
+                >
+                  <RefreshCw className="w-3 h-3" /> 换一批
+                </button>
+             </div>
 
-        <div className="divide-y divide-slate-100">
-          {items.map((item, index) => (
-            <div key={index} className="p-5 hover:bg-slate-50 transition-colors flex flex-col md:flex-row gap-4 items-start md:items-center justify-between group">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded border border-slate-200 font-medium">
-                    {item.source || '微信公众号'}
-                  </span>
-                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-blue-700 hover:underline line-clamp-1 text-sm md:text-base">
-                    {item.title}
-                  </a>
-                  <ExternalLink className="w-3 h-3 text-slate-300" />
-                </div>
-                <p className="text-sm text-slate-600 line-clamp-2 mb-2 bg-slate-50/50 p-2 rounded border border-slate-100/50">
-                  <span className="text-red-500 font-medium text-xs mr-1">疑似违规点:</span>
-                  {item.snippet}
-                </p>
-                <div className="text-[10px] text-slate-400 truncate font-mono flex gap-2">
-                   <span>{item.url.substring(0, 50)}...</span>
-                </div>
-              </div>
-              
-              <button
-                onClick={() => onAnalyzeItem(item.url)}
-                className="shrink-0 flex items-center gap-1 bg-white border border-blue-200 text-blue-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-sm"
-              >
-                一键校验
-                <ArrowRight className="w-3 h-3" />
-              </button>
-            </div>
-          ))}
-        </div>
-        
-        {items.length > 0 && (
-           <div className="p-4 bg-slate-50 text-center">
-              <button 
-                onClick={() => handleSearch(currentCategory)} 
-                className="text-xs text-slate-500 hover:text-blue-600 underline flex items-center justify-center gap-1 mx-auto"
-              >
-                <RefreshCw className="w-3 h-3" />
-                换一批 / 重新搜索
-              </button>
-           </div>
+             <div className="grid grid-cols-1 gap-3">
+                {items.map((item, index) => (
+                  <div key={index} className="group bg-white p-4 rounded-xl border border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all duration-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="shrink-0 bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded font-bold tracking-wide">
+                          {item.source}
+                        </span>
+                        <h4 className="font-bold text-slate-800 truncate group-hover:text-indigo-700 transition-colors text-sm md:text-base">
+                          {item.title}
+                        </h4>
+                      </div>
+                      
+                      <div className="flex items-center gap-1 text-xs text-slate-400 mb-2 font-mono">
+                         <ExternalLink className="w-3 h-3" />
+                         <a href={item.url} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-indigo-500 truncate max-w-[300px]">
+                           {item.url}
+                         </a>
+                      </div>
+
+                      <p className="text-xs text-slate-500 bg-slate-50 p-2 rounded border border-slate-100 line-clamp-1">
+                        <span className="text-rose-500 font-medium mr-1">● 潜在风险:</span>
+                        {item.snippet || "包含夸大或绝对化用语，建议进一步人工核查。"}
+                      </p>
+                    </div>
+                    
+                    <button
+                      onClick={() => onAnalyzeItem(item.url)}
+                      className="shrink-0 flex items-center justify-center gap-2 bg-indigo-50 text-indigo-700 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-indigo-600 hover:text-white transition-all"
+                    >
+                      立即校验
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+             </div>
+          </div>
         )}
       </div>
     </div>

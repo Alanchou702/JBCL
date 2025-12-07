@@ -22,11 +22,8 @@ const App: React.FC = () => {
   });
 
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  
-  // State to pre-fill URL from Discovery
   const [prefilledUrl, setPrefilledUrl] = useState<string>('');
 
-  // Load history from localStorage on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem(HISTORY_KEY);
@@ -38,7 +35,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Save history helper
   const saveHistory = (newItem: HistoryItem) => {
     setHistory(prev => {
       const updated = [newItem, ...prev].slice(0, MAX_HISTORY);
@@ -58,10 +54,8 @@ const App: React.FC = () => {
     setState({ isLoading: true, error: null, result: null });
     try {
       const result = await analyzeContent(content, images, mode, url);
-      
       setState({ isLoading: false, error: null, result });
 
-      // Save to history if successful
       const historyItem: HistoryItem = {
         id: Date.now().toString(),
         timestamp: Date.now(),
@@ -97,20 +91,20 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
+    <div className="min-h-screen bg-slate-50 pb-20 font-sans">
       <Header />
       
-      <main className="container mx-auto px-4 max-w-4xl mt-8">
+      <main className="container mx-auto px-4 max-w-5xl mt-8">
         
         {/* Main Tab Navigation */}
-        <div className="flex justify-center mb-8">
-           <div className="bg-white p-1 rounded-full shadow-sm border border-slate-200 flex">
+        <div className="flex justify-center mb-10">
+           <div className="bg-white p-1.5 rounded-xl shadow-sm border border-slate-200 flex">
               <button 
                 onClick={() => setActiveTab('ANALYSIS')}
-                className={`flex items-center gap-2 px-6 py-2 rounded-full text-sm font-medium transition-all ${
+                className={`flex items-center gap-2 px-8 py-2.5 rounded-lg text-sm font-bold transition-all ${
                   activeTab === 'ANALYSIS' 
-                  ? 'bg-blue-600 text-white shadow-md' 
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-indigo-600 text-white shadow-md' 
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
                 }`}
               >
                 <ShieldCheck className="w-4 h-4" />
@@ -118,10 +112,10 @@ const App: React.FC = () => {
               </button>
               <button 
                 onClick={() => setActiveTab('DISCOVERY')}
-                className={`flex items-center gap-2 px-6 py-2 rounded-full text-sm font-medium transition-all ${
+                className={`flex items-center gap-2 px-8 py-2.5 rounded-lg text-sm font-bold transition-all ${
                   activeTab === 'DISCOVERY' 
-                  ? 'bg-blue-600 text-white shadow-md' 
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-indigo-600 text-white shadow-md' 
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
                 }`}
               >
                 <Search className="w-4 h-4" />
@@ -131,13 +125,13 @@ const App: React.FC = () => {
         </div>
 
         {activeTab === 'ANALYSIS' && (
-          <div className="animate-fade-in">
-            <div className="mb-8 text-center">
-                <h2 className="text-3xl font-bold text-slate-800 mb-3">
-                    一键检测广告合规风险
+          <div className="animate-fade-in space-y-8">
+            <div className="text-center space-y-3">
+                <h2 className="text-3xl md:text-4xl font-extrabold text-slate-800 tracking-tight">
+                    智能广告合规校验系统
                 </h2>
-                <p className="text-slate-500 max-w-2xl mx-auto">
-                    基于最新《广告法》、《中医药法》等法规，利用AI智能识别虚假宣传、违规承诺及绝对化用语，支持<b>图片/截图</b>识别，自动生成专业合规报告。
+                <p className="text-slate-500 max-w-2xl mx-auto text-lg">
+                    依据最新监管法规，AI深度识别广告风险，一键生成专业举报文案。
                 </p>
             </div>
 
@@ -149,9 +143,12 @@ const App: React.FC = () => {
             />
             
             {state.error && (
-                <div className="mt-6 bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg flex items-center gap-3 animate-pulse">
-                    <AlertCircle className="w-5 h-5" />
-                    <p>{state.error}</p>
+                <div className="bg-red-50 border border-red-200 text-red-800 p-5 rounded-xl flex items-start gap-4 shadow-sm animate-pulse">
+                    <AlertCircle className="w-6 h-6 shrink-0 text-red-600 mt-0.5" />
+                    <div>
+                      <h4 className="font-bold">分析中断</h4>
+                      <p className="text-sm mt-1 opacity-90">{state.error}</p>
+                    </div>
                 </div>
             )}
 
@@ -174,12 +171,14 @@ const App: React.FC = () => {
         )}
 
         {/* Footer Disclaimer */}
-        <div className="mt-16 border-t border-slate-200 pt-8 text-center text-xs text-slate-400">
-            <p>
-                免责声明：本工具基于人工智能技术提供辅助性合规建议，仅供参考，不作为最终法律依据。
-                <br />
-                重大商业决策请咨询专业法务人员或相关监管部门。
+        <div className="mt-20 border-t border-slate-200 pt-8 text-center text-xs text-slate-400 leading-relaxed">
+            <p className="max-w-xl mx-auto">
+                <span className="font-bold text-slate-500">免责声明：</span> 
+                本工具提供的合规建议基于人工智能模型生成，仅供参考，不具有法律效力。
+                在做出重大商业决策或法律行动前，请务必咨询专业律师或相关监管部门。
+                系统不会保存您的敏感商业数据。
             </p>
+            <p className="mt-2 text-slate-300">© 2025 AdGuardian CN. All Rights Reserved.</p>
         </div>
       </main>
     </div>

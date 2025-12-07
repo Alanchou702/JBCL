@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { InputMode } from '../types';
-import { FileText, Link as LinkIcon, Sparkles, ClipboardPaste, ImagePlus, X } from 'lucide-react';
+import { FileText, Link as LinkIcon, Sparkles, ClipboardPaste, ImagePlus, X, ScanSearch, Loader2 } from 'lucide-react';
 
 interface AnalysisFormProps {
   onAnalyze: (content: string, images: string[], mode: InputMode, url?: string) => void;
@@ -65,110 +65,119 @@ export const AnalysisForm: React.FC<AnalysisFormProps> = ({ onAnalyze, isLoading
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       {/* Tabs */}
-      <div className="flex border-b border-slate-200">
+      <div className="grid grid-cols-2 border-b border-slate-100">
         <button
           onClick={() => setMode(InputMode.TEXT)}
-          className={`flex-1 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+          className={`py-4 text-sm font-medium flex items-center justify-center gap-2 transition-all relative ${
             mode === InputMode.TEXT
-              ? 'bg-white text-blue-600 border-b-2 border-blue-600'
-              : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+              ? 'text-indigo-600 bg-white'
+              : 'text-slate-500 hover:bg-slate-50'
           }`}
         >
           <FileText className="w-4 h-4" />
           文案/图片校验
+          {mode === InputMode.TEXT && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 mx-12 rounded-t-full"></div>}
         </button>
         <button
           onClick={() => setMode(InputMode.URL)}
-          className={`flex-1 py-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+          className={`py-4 text-sm font-medium flex items-center justify-center gap-2 transition-all relative ${
             mode === InputMode.URL
-              ? 'bg-white text-blue-600 border-b-2 border-blue-600'
-              : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+              ? 'text-indigo-600 bg-white'
+              : 'text-slate-500 hover:bg-slate-50'
           }`}
         >
           <LinkIcon className="w-4 h-4" />
           链接/小程序校验
+          {mode === InputMode.URL && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 mx-12 rounded-t-full"></div>}
         </button>
       </div>
 
       {/* Form Content */}
-      <form onSubmit={handleSubmit} className="p-6">
+      <form onSubmit={handleSubmit} className="p-6 md:p-8">
         {mode === InputMode.TEXT ? (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div>
-              <label htmlFor="ad-text" className="block text-sm font-semibold text-slate-700 mb-2">
-                广告创意/文案内容
+              <label htmlFor="ad-text" className="block text-sm font-bold text-slate-700 mb-2 flex justify-between">
+                <span>广告创意/文案内容</span>
+                <span className="text-xs font-normal text-slate-400">支持直接粘贴</span>
               </label>
               <textarea
                 id="ad-text"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="在此粘贴广告文案、朋友圈推文内容..."
-                className="w-full h-32 p-4 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none text-slate-700 placeholder:text-slate-400"
+                placeholder="请在此输入或粘贴广告文案内容..."
+                className="w-full h-40 p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-none text-slate-700 placeholder:text-slate-300 text-sm leading-relaxed bg-slate-50/50"
               />
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div>
-              <label htmlFor="ad-url" className="block text-sm font-semibold text-slate-700 mb-2">
+              <label htmlFor="ad-url" className="block text-sm font-bold text-slate-700 mb-2">
                 推广链接 / 小程序路径 <span className="text-red-500">*</span>
               </label>
-              <input
-                id="ad-url"
-                type="text"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="示例：https://mp.weixin.qq.com/... 或 #小程序://..."
-                className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono text-sm"
-                required
-              />
-              <p className="text-xs text-slate-400 mt-1">支持微信公众号文章链接、小程序路径（如 #小程序://...）等</p>
+              <div className="relative">
+                <input
+                  id="ad-url"
+                  type="text"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="示例：https://mp.weixin.qq.com/... 或 #小程序://..."
+                  className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-mono text-sm bg-slate-50/50"
+                  required
+                />
+                <LinkIcon className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" />
+              </div>
+              <p className="text-xs text-slate-400 mt-2 ml-1">支持微信公众号文章链接、小程序路径（如 #小程序://...）等</p>
             </div>
 
-            <div className="bg-blue-50 text-blue-800 p-4 rounded-lg flex items-start gap-3 text-sm border border-blue-100">
-              <ClipboardPaste className="w-5 h-5 shrink-0 mt-0.5 text-blue-600" />
+            <div className="bg-blue-50/50 text-blue-800 p-5 rounded-xl flex items-start gap-4 text-sm border border-blue-100">
+              <div className="bg-white p-2 rounded-lg shadow-sm shrink-0">
+                <ClipboardPaste className="w-5 h-5 text-blue-600" />
+              </div>
               <div>
-                <p className="font-semibold mb-1">请粘贴正文内容</p>
-                <p className="text-blue-700/80">
-                  由于微信等平台的隐私限制，系统无法直接抓取内容。请务必将网页/小程序页面的文字复制到下方。如果是图片广告，请在下方上传截图。
+                <p className="font-bold text-blue-900 mb-1">必须手动粘贴正文</p>
+                <p className="text-blue-700/80 leading-relaxed text-xs md:text-sm">
+                  受限于微信等平台的隐私保护机制，系统无法直接抓取链接内容。请您手动复制网页或小程序页面的文字内容粘贴到下方，以确保合规校验的准确性。
                 </p>
               </div>
             </div>
 
             <div>
-              <label htmlFor="url-text-content" className="block text-sm font-semibold text-slate-700 mb-2">
-                文章/页面正文
+              <label htmlFor="url-text-content" className="block text-sm font-bold text-slate-700 mb-2">
+                文章/页面正文内容 <span className="text-red-500">*</span>
               </label>
               <textarea
                 id="url-text-content"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="请将打开链接后的页面文字内容粘贴到这里..."
-                className="w-full h-32 p-4 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none text-slate-700 placeholder:text-slate-400"
+                placeholder="请将页面文字内容粘贴到这里..."
+                className="w-full h-32 p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-none text-slate-700 placeholder:text-slate-300 text-sm bg-slate-50/50"
               />
             </div>
           </div>
         )}
 
         {/* Shared Image Upload Section */}
-        <div className="mt-4">
-          <label className="block text-sm font-semibold text-slate-700 mb-2">
-            图片/截图上传 (支持多图)
+        <div className="mt-8 pt-6 border-t border-slate-100">
+          <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+            <ScanSearch className="w-4 h-4 text-indigo-500" />
+            图片/截图佐证 (支持多图)
           </label>
-          <p className="text-xs text-slate-500 mb-3">
-             强烈建议上传包含<b>阅读量、销量数据、发布日期</b>的截图，AI将自动提取并在举报文案中作为佐证。
+          <p className="text-xs text-slate-500 mb-4">
+             AI将自动识别图片中的广告语、销量数据及发布日期。建议上传包含<b>关键承诺</b>及<b>数据</b>的截图。
           </p>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
             {images.map((img, index) => (
-              <div key={index} className="relative group aspect-square rounded-lg overflow-hidden border border-slate-200">
+              <div key={index} className="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 shadow-sm">
                 <img src={img} alt={`Uploaded ${index}`} className="w-full h-full object-cover" />
                 <button
                   type="button"
                   onClick={() => removeImage(index)}
-                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-1 right-1 bg-black/50 hover:bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3 h-3" />
                 </button>
               </div>
             ))}
@@ -176,10 +185,10 @@ export const AnalysisForm: React.FC<AnalysisFormProps> = ({ onAnalyze, isLoading
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-lg text-slate-400 hover:border-blue-500 hover:text-blue-500 transition-colors bg-slate-50"
+              className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:border-indigo-400 hover:text-indigo-500 hover:bg-indigo-50/30 transition-all bg-slate-50"
             >
-              <ImagePlus className="w-8 h-8 mb-2" />
-              <span className="text-xs">点击上传</span>
+              <ImagePlus className="w-6 h-6 mb-1.5 opacity-50" />
+              <span className="text-[10px] font-medium">点击上传</span>
             </button>
             <input
               ref={fileInputRef}
@@ -194,9 +203,9 @@ export const AnalysisForm: React.FC<AnalysisFormProps> = ({ onAnalyze, isLoading
 
         {/* URL Input for Text Mode (moved to bottom as optional) */}
         {mode === InputMode.TEXT && (
-           <div className="mt-4">
-              <label htmlFor="ref-url-opt" className="block text-sm font-semibold text-slate-700 mb-2">
-               原文链接 (可选)
+           <div className="mt-6">
+             <label htmlFor="ref-url-opt" className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">
+               原文链接 (选填)
              </label>
              <input 
                id="ref-url-opt"
@@ -204,7 +213,7 @@ export const AnalysisForm: React.FC<AnalysisFormProps> = ({ onAnalyze, isLoading
                value={url}
                onChange={(e) => setUrl(e.target.value)}
                placeholder="https://... 或 #小程序://..."
-               className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono text-sm"
+               className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-mono text-xs bg-slate-50/50"
              />
            </div>
         )}
@@ -213,21 +222,21 @@ export const AnalysisForm: React.FC<AnalysisFormProps> = ({ onAnalyze, isLoading
           <button
             type="submit"
             disabled={isLoading}
-            className={`w-full py-3 px-6 rounded-lg text-white font-medium text-lg flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg ${
+            className={`w-full py-4 px-6 rounded-xl text-white font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg shadow-indigo-200 hover:shadow-indigo-300 transform active:scale-[0.99] ${
               isLoading
-                ? 'bg-slate-400 cursor-not-allowed'
-                : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800'
+                ? 'bg-slate-400 cursor-not-allowed shadow-none'
+                : 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700'
             }`}
           >
             {isLoading ? (
               <>
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>法规校验中...</span>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>智能引擎校验中...</span>
               </>
             ) : (
               <>
                 <Sparkles className="w-5 h-5" />
-                <span>立即合规校验</span>
+                <span>立即开始合规校验</span>
               </>
             )}
           </button>
