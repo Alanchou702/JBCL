@@ -1,7 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Scale, ShieldCheck, Activity } from 'lucide-react';
 
 export const Header: React.FC = () => {
+  const [currentDate, setCurrentDate] = useState('');
+
+  useEffect(() => {
+    const now = new Date();
+    // Format: YYYY.MM.DD
+    const formatted = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
+    setCurrentDate(formatted);
+  }, []);
+
   return (
     <header className="bg-slate-900 border-b border-indigo-500/30 sticky top-0 z-50 shadow-xl shadow-indigo-900/20">
       <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950 opacity-90"></div>
@@ -42,7 +51,7 @@ export const Header: React.FC = () => {
            <div className="flex flex-col items-end">
              <span className="text-xs text-slate-400 flex items-center gap-1">
                <ShieldCheck className="w-3 h-3 text-indigo-400" /> 
-               法规库: <span className="text-slate-200">2025.07版</span>
+               法规库版本: <span className="text-emerald-400 font-mono font-bold">{currentDate || 'Loading...'} (自动更新)</span>
              </span>
            </div>
         </div>

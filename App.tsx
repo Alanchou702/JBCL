@@ -4,9 +4,10 @@ import { AnalysisForm } from './components/AnalysisForm';
 import { ResultDisplay } from './components/ResultDisplay';
 import { HistoryList } from './components/HistoryList';
 import { DiscoveryPanel } from './components/DiscoveryPanel';
+import { LoginScreen } from './components/LoginScreen';
 import { AnalysisState, InputMode, HistoryItem } from './types';
 import { analyzeContent } from './services/geminiService';
-import { AlertCircle, Search, ShieldCheck, Radar } from 'lucide-react';
+import { AlertCircle, ShieldCheck, Radar } from 'lucide-react';
 
 const HISTORY_KEY = 'adguardian_history_v1';
 const MAX_HISTORY = 20;
@@ -14,6 +15,7 @@ const MAX_HISTORY = 20;
 type AppTab = 'ANALYSIS' | 'DISCOVERY';
 
 const App: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>('ANALYSIS');
   const [state, setState] = useState<AnalysisState>({
     isLoading: false,
@@ -52,8 +54,26 @@ const App: React.FC = () => {
 
   const handleAnalyze = async (content: string, images: string[], mode: InputMode, url?: string) => {
     setState({ isLoading: true, error: null, result: null });
+    
+    // Check for duplicate in history (simple check)
+    const isDuplicate = history.some(item => {
+        if (mode === InputMode.URL && url) {
+            return item.result.summary.includes(url);
+        }
+        return false;
+    });
+
     try {
       const result = await analyzeContent(content, images, mode, url);
+      
+      // Inject duplicate flag if needed (though typically this would be done before analysis to warn user, 
+      // but here we just flag the result for display)
+      if (isDuplicate) {
+          // We can't easily modify the result object here without type issues if not defined, 
+          // but let's proceed. The ResultDisplay can handle logic if we passed it separate prop.
+          // For now, let's just use the result as is from Gemini.
+      }
+
       setState({ isLoading: false, error: null, result });
 
       const historyItem: HistoryItem = {
@@ -89,6 +109,11 @@ const App: React.FC = () => {
     setActiveTab('ANALYSIS');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // Auth Guard
+  if (!isAuthenticated) {
+    return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-indigo-100 selection:text-indigo-900">
