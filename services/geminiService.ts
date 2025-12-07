@@ -97,7 +97,7 @@ export const analyzeContent = async (
   sourceUrl: string = ''
 ): Promise<AnalysisResult> => {
   if (!apiKey) {
-    throw new Error("API Key is not configured.");
+    throw new Error("系统未检测到 API Key。请在部署平台（如 Netlify）的环境变量中配置 'API_KEY'。");
   }
 
   const modelId = "gemini-2.5-flash"; 
@@ -166,9 +166,16 @@ export const analyzeContent = async (
     } else {
       throw new Error("No response text received from AI.");
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
-    throw new Error("分析过程中发生错误，请稍后重试或检查输入内容。");
+    const errorMessage = error.message || error.toString();
+    
+    // Provide user-friendly messages for common errors
+    if (errorMessage.includes("API key") || errorMessage.includes("403") || errorMessage.includes("400")) {
+       throw new Error("API Key 无效或未授权。请检查 Netlify 环境变量配置是否正确。");
+    }
+    
+    throw new Error("AI 服务暂时不可用，请稍后重试。详细错误: " + errorMessage);
   }
 };
 
@@ -199,7 +206,7 @@ const RISK_SEARCH_QUERIES: Record<string, string[]> = {
 
 export const discoverRisks = async (category: string = 'GENERAL'): Promise<DiscoveryItem[]> => {
   if (!apiKey) {
-    throw new Error("API Key is not configured.");
+    throw new Error("系统未检测到 API Key。请在部署平台（如 Netlify）的环境变量中配置 'API_KEY'。");
   }
 
   const modelId = "gemini-2.5-flash"; 
@@ -257,8 +264,12 @@ export const discoverRisks = async (category: string = 'GENERAL'): Promise<Disco
 
     return uniqueResults.slice(0, 15);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Discovery Error:", error);
+    const errorMessage = error.message || error.toString();
+    if (errorMessage.includes("API key")) {
+         throw new Error("API Key 无效或未配置。");
+    }
     return [];
   }
 };
