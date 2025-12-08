@@ -29,8 +29,8 @@ export const Header: React.FC = () => {
               <p className="text-[10px] md:text-xs text-slate-400 uppercase tracking-[0.2em] font-medium">
                 广告合规智能监管系统
               </p>
-              <span className="hidden md:inline-block px-2 py-0.5 bg-fuchsia-600 border border-fuchsia-500 rounded text-[10px] text-white font-bold shadow-lg shadow-fuchsia-900/50">
-                V3.5 (抗干扰增强版)
+              <span className="hidden md:inline-block px-2 py-0.5 bg-indigo-600 border border-indigo-500 rounded text-[10px] text-white font-bold shadow-lg shadow-indigo-900/50">
+                V3.7 (高可用版)
               </span>
             </div>
           </div>

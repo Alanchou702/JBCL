@@ -1,20 +1,22 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Lock, ArrowRight, AlertCircle, KeyRound } from 'lucide-react';
+import { ShieldCheck, Lock, ArrowRight, AlertCircle, KeyRound, Settings, Globe } from 'lucide-react';
 
 interface LoginScreenProps {
-  onLogin: (apiKey: string) => void;
+  onLogin: (apiKey: string, baseUrl?: string) => void;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [pin, setPin] = useState('');
   const [apiKey, setApiKey] = useState('');
+  const [baseUrl, setBaseUrl] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (pin.trim().toUpperCase() === 'GG') {
       if (apiKey.trim().length > 10) {
-        onLogin(apiKey.trim());
+        onLogin(apiKey.trim(), baseUrl.trim());
       } else {
         alert("请输入有效的 Google Gemini API Key 以连接智能服务。");
       }
@@ -89,6 +91,41 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
               </p>
             </div>
 
+            {/* Advanced Settings Toggle */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="flex items-center gap-2 text-xs text-slate-400 hover:text-indigo-400 transition-colors"
+              >
+                <Settings className="w-3 h-3" />
+                {showAdvanced ? "收起高级设置" : "高级设置 (代理/Base URL)"}
+              </button>
+              
+              {showAdvanced && (
+                <div className="mt-3 animate-fade-in space-y-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700">
+                  <label htmlFor="baseUrl" className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                    API Base URL (选填)
+                  </label>
+                  <div className="relative group">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-blue-400 transition-colors" />
+                    <input
+                      type="text"
+                      id="baseUrl"
+                      value={baseUrl}
+                      onChange={(e) => setBaseUrl(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-600 text-white rounded-lg py-2 pl-9 pr-3 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono text-xs placeholder:text-slate-600"
+                      placeholder="https://generativelanguage.googleapis.com"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-500">
+                    如网络受限，可填入反向代理地址 (如 Cloudflare Worker)。
+                  </p>
+                </div>
+              )}
+            </div>
+
             {error && (
               <div className="flex items-center gap-2 text-rose-400 text-sm font-bold bg-rose-500/10 p-3 rounded-lg border border-rose-500/20 animate-shake">
                 <AlertCircle className="w-4 h-4" />
@@ -107,7 +144,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         </div>
         
         <div className="text-center mt-8 text-slate-600 text-xs font-mono">
-          <p>SYSTEM ID: ADG-CN-V3.5-DIRECT</p>
+          <p>SYSTEM ID: ADG-CN-V3.6-NETWORK-OPT</p>
         </div>
       </div>
     </div>

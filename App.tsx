@@ -6,7 +6,7 @@ import { HistoryList } from './components/HistoryList';
 import { DiscoveryPanel } from './components/DiscoveryPanel';
 import { LoginScreen } from './components/LoginScreen';
 import { AnalysisState, InputMode, HistoryItem } from './types';
-import { analyzeContent, setApiKey } from './services/geminiService';
+import { analyzeContent, setConfiguration } from './services/geminiService';
 import { AlertCircle, ShieldCheck, Radar } from 'lucide-react';
 
 const HISTORY_KEY = 'adguardian_history_v1';
@@ -27,7 +27,7 @@ const App: React.FC = () => {
   const [prefilledUrl, setPrefilledUrl] = useState<string>('');
 
   useEffect(() => {
-    console.log("AdGuardian App Loaded - Version 3.5 Check");
+    console.log("AdGuardian App Loaded - Version 3.6 Check");
     try {
       const saved = localStorage.getItem(HISTORY_KEY);
       if (saved) {
@@ -61,12 +61,12 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLogin = (key: string) => {
+  const handleLogin = (key: string, baseUrl?: string) => {
     if (!key) {
         alert("API Key 不能为空");
         return;
     }
-    setApiKey(key);
+    setConfiguration(key, baseUrl);
     setIsAuthenticated(true);
   };
 
@@ -189,7 +189,7 @@ const App: React.FC = () => {
                     </div>
                     <div>
                       <h4 className="font-bold text-lg">分析中断</h4>
-                      <p className="text-sm mt-1 leading-relaxed opacity-90">{state.error}</p>
+                      <p className="text-sm mt-1 leading-relaxed opacity-90 whitespace-pre-line">{state.error}</p>
                     </div>
                 </div>
             )}

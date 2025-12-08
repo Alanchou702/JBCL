@@ -1,33 +1,50 @@
 import { GoogleGenAI, Type, Schema, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { AnalysisResult, DiscoveryItem } from "../types";
 
-// 存储动态注入的 API Key
+// Store dynamic configuration
 let dynamicApiKey = '';
+let dynamicBaseUrl = '';
 
-export const setApiKey = (key: string) => {
+export const setConfiguration = (key: string, baseUrl?: string) => {
   dynamicApiKey = key;
+  // Normalize Base URL: remove trailing slash to avoid double slashes when SDK appends paths
+  if (baseUrl) {
+    dynamicBaseUrl = baseUrl.trim().replace(/\/+$/, '');
+  } else {
+    dynamicBaseUrl = '';
+  }
 };
 
 // Helper function to handle 429 Rate Limits with exponential backoff
-const generateWithRetry = async (model: any, params: any, retries = 3): Promise<any> => {
+const generateWithRetry = async (model: any, params: any, retries = 5): Promise<any> => {
   for (let i = 0; i < retries; i++) {
     try {
       return await model.generateContent(params);
     } catch (error: any) {
-      // Check for Rate Limit (429) or Quota Exceeded
-      const isRateLimit = error.message?.includes('429') || 
+      const errMsg = error.message || error.toString();
+      
+      // 1. Diagnosis: Network Error (Failed to fetch)
+      if (errMsg.includes('Failed to fetch') || errMsg.includes('NetworkError')) {
+          throw new Error("网络连接失败。请检查：\n1. VPN/代理是否开启？\n2. 是否配置了有效的 Base URL (代理地址)？\n3. 您的网络是否能访问 Google API？");
+      }
+
+      // 2. Diagnosis: Rate Limit (429)
+      const isRateLimit = errMsg.includes('429') || 
                           error.status === 429 || 
-                          JSON.stringify(error).includes('RESOURCE_EXHAUSTED');
+                          errMsg.includes('RESOURCE_EXHAUSTED');
       
       if (isRateLimit) {
         if (i === retries - 1) {
-             throw new Error("API 调用频率超限 (429)。Google 免费版 Key 每分钟限制较严，请稍后重试或更换 Key。");
+             throw new Error("API 调用频率超限 (429)。您的免费版 Key 额度已耗尽，请更换 Key 或稍后再试。");
         }
-        const delay = Math.pow(2, i) * 2000 + Math.random() * 1000; // 2s, 4s, 8s...
-        console.warn(`[AdGuardian] 触发限流 (429), 等待 ${Math.round(delay)}ms 后重试 (第 ${i+1} 次)...`);
+        // Aggressive backoff: 2s, 4s, 8s, 16s, 32s
+        const delay = Math.pow(2, i + 1) * 1000 + Math.random() * 1000;
+        console.warn(`[AdGuardian] 触发限流 (429), 等待 ${Math.round(delay)}ms 后重试 (第 ${i+1}/${retries} 次)...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       }
+      
+      // Other errors, throw immediately
       throw error;
     }
   }
@@ -108,7 +125,14 @@ export const analyzeContent = async (
     throw new Error("API Key 未设置。请在登录页输入有效的 Google Gemini API Key。");
   }
 
-  const ai = new GoogleGenAI({ apiKey: dynamicApiKey });
+  // Initialize AI with optional Base URL for proxying
+  const clientOptions: any = { apiKey: dynamicApiKey };
+  if (dynamicBaseUrl) {
+    clientOptions.baseUrl = dynamicBaseUrl;
+    console.log("Using Custom Base URL:", dynamicBaseUrl);
+  }
+
+  const ai = new GoogleGenAI(clientOptions);
   const modelId = "gemini-2.5-flash"; 
   const currentDate = new Date().toLocaleDateString('zh-CN');
   
@@ -175,8 +199,9 @@ export const analyzeContent = async (
     throw new Error("Strict Mode Empty");
 
   } catch (error: any) {
-    // Check if error is specifically user quota exhausted, if so, stop here
-    if (error.message?.includes('API 调用频率超限')) {
+    // If it's a critical infrastructure error, throw it.
+    const msg = error.message || '';
+    if (msg.includes('网络连接失败') || msg.includes('API 调用频率超限') || msg.includes('403') || msg.includes('API key')) {
         throw error;
     }
 
@@ -184,9 +209,8 @@ export const analyzeContent = async (
     console.log("Switching to Fallback Mode (Passive Extraction)...");
 
     const fallbackParts = [...baseParts];
-    // Override prompt to be purely mechanical extraction to bypass "Judgment" filters
     fallbackParts.push({ 
-        text: `\n\n[SYSTEM OVERRIDE]: Stop acting as an auditor. Just extract data.\nFormat: JSON.\nKeys: isAd, productName, violations (array), summary, publicationDate, isOldArticle.\nIf you see claims like "Cure Cancer" or "Male Enhancement" for food, just list them in 'violations' as "Claim Mismatch".` 
+        text: `\n\n[SYSTEM OVERRIDE]: Just extract text to JSON. No analysis. Keys: isAd, productName, violations (array), summary, publicationDate, isOldArticle.` 
     });
 
     try {
@@ -217,26 +241,48 @@ export const analyzeContent = async (
                 return JSON.parse(finalText) as AnalysisResult;
             } catch (jsonErr) {
                 console.error("Fallback JSON Parse Error", jsonErr);
-                throw new Error("AI返回数据格式错误，请重试。");
             }
         }
-
-        const candidate = resultFallback.candidates?.[0];
-        if (candidate?.finishReason) {
-             let reasonDesc: string = candidate.finishReason;
-             if (candidate.finishReason === 'SAFETY') reasonDesc = '内容触发安全拦截 (敏感医疗/成人内容)';
-             if (candidate.finishReason === 'OTHER') reasonDesc = '模型拒绝处理';
-             throw new Error(`分析中止。原因: ${reasonDesc}。即便使用了API直连，Google仍可能拦截此类高风险内容。`);
-        }
         
-        throw new Error("无响应结果。请检查您的网络连接是否能访问 Google API。");
+        // If we reach here, BOTH attempts failed to produce valid JSON.
+        // Instead of throwing an error that crashes the UI, return a "Graceful Failure" result.
+        console.warn("All AI attempts failed. Returning Graceful Failure result.");
+        return {
+          isAd: true,
+          productName: "分析未完成 (需人工复核)",
+          violations: [{
+             type: "系统响应中断",
+             law: "无",
+             explanation: "AI 未能返回有效结果。可能原因：1. 内容过于敏感触发安全拦截；2. 网络连接不稳定；3. 图片无法识别。请尝试减少图片数量或仅上传参数表。",
+             originalText: "无"
+          }],
+          summary: "系统未能自动生成完整报告。建议人工核查该广告内容。如有必要，请更换 API Key 或检查网络环境后重试。",
+          publicationDate: "未知",
+          isOldArticle: false
+        };
 
     } catch (fallbackError: any) {
         console.error("Gemini Analysis Final Error:", fallbackError);
-        const msg = fallbackError.message || fallbackError.toString();
-        if (msg.includes("API 调用频率超限")) throw fallbackError; // Re-throw quota error
-        if (msg.includes("403") || msg.includes("API key")) throw new Error("API Key 无效或过期。");
-        throw fallbackError;
+        // Even if fallback crashes (e.g. network), verify if we should throw or return graceful failure
+        const fallbackMsg = fallbackError.message || '';
+        if (fallbackMsg.includes("网络连接失败") || fallbackMsg.includes("频率超限")) {
+             throw fallbackError;
+        }
+        
+        // Return graceful failure for unknown runtime errors during fallback
+        return {
+          isAd: true,
+          productName: "系统错误",
+          violations: [{
+             type: "运行错误",
+             law: "无",
+             explanation: `系统运行中发生错误: ${fallbackMsg.substring(0, 100)}...`,
+             originalText: "无"
+          }],
+          summary: "分析过程中发生未知错误，请重试。",
+          publicationDate: "未知",
+          isOldArticle: false
+        };
     }
   }
 };
@@ -264,7 +310,13 @@ const RISK_SEARCH_QUERIES: Record<string, string[]> = {
 export const discoverRisks = async (category: string = 'GENERAL'): Promise<DiscoveryItem[]> => {
   if (!dynamicApiKey) throw new Error("API Key 未设置。");
 
-  const ai = new GoogleGenAI({ apiKey: dynamicApiKey });
+  // Re-init with correct options
+  const clientOptions: any = { apiKey: dynamicApiKey };
+  if (dynamicBaseUrl) {
+    clientOptions.baseUrl = dynamicBaseUrl;
+  }
+  const ai = new GoogleGenAI(clientOptions);
+
   const modelId = "gemini-2.5-flash"; 
   const queries = RISK_SEARCH_QUERIES[category] || RISK_SEARCH_QUERIES['GENERAL'];
   const selectedQuery = queries[Math.floor(Math.random() * queries.length)];
