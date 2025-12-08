@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Scale, ShieldCheck } from 'lucide-react';
 
@@ -30,7 +31,7 @@ export const Header: React.FC = () => {
                 广告合规智能监管系统
               </p>
               <span className="hidden md:inline-block px-2 py-0.5 bg-indigo-600 border border-indigo-500 rounded text-[10px] text-white font-bold shadow-lg shadow-indigo-900/50">
-                V3.7 (高可用版)
+                V4.2 (纯净文案版)
               </span>
             </div>
           </div>

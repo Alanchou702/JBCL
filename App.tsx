@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { AnalysisForm } from './components/AnalysisForm';
@@ -27,7 +28,7 @@ const App: React.FC = () => {
   const [prefilledUrl, setPrefilledUrl] = useState<string>('');
 
   useEffect(() => {
-    console.log("AdGuardian App Loaded - Version 3.6 Check");
+    console.log("AdGuardian App Loaded - V4.1 (Google Only)");
     try {
       const saved = localStorage.getItem(HISTORY_KEY);
       if (saved) {
@@ -61,12 +62,8 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLogin = (key: string, baseUrl?: string) => {
-    if (!key) {
-        alert("API Key 不能为空");
-        return;
-    }
-    setConfiguration(key, baseUrl);
+  const handleLogin = (key: string, baseUrl: string, modelId: string) => {
+    setConfiguration(key, baseUrl, modelId);
     setIsAuthenticated(true);
   };
 
@@ -90,19 +87,22 @@ const App: React.FC = () => {
 
       setState({ isLoading: false, error: null, result });
 
-      const historyItem: HistoryItem = {
-        id: Date.now().toString(),
-        timestamp: Date.now(),
-        productName: result.productName,
-        summary: result.summary,
-        result: result
-      };
-      saveHistory(historyItem);
+      // Only save to history if it's a valid result (not a system error fallback)
+      if (result.productName !== "系统错误" && result.productName !== "分析中断" && result.productName !== "分析失败") {
+          const historyItem: HistoryItem = {
+            id: Date.now().toString(),
+            timestamp: Date.now(),
+            productName: result.productName,
+            summary: result.summary,
+            result: result
+          };
+          saveHistory(historyItem);
+      }
 
     } catch (err: any) {
       setState({ 
         isLoading: false, 
-        error: err.message || '发生未知错误，请检查网络设置或API配置。', 
+        error: err.message || '发生未知错误', 
         result: null 
       });
     }
@@ -171,7 +171,7 @@ const App: React.FC = () => {
                     智能广告合规校验
                 </h2>
                 <p className="text-slate-500 max-w-2xl mx-auto text-lg font-medium">
-                    基于 Google Gemini 多模态模型，精准识别图文违规风险
+                    Google Gemini 双引擎 (V2.5 Flash / V2.0 Pro) · 深度违规识别
                 </p>
             </div>
 

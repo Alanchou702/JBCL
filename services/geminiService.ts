@@ -1,340 +1,215 @@
-import { GoogleGenAI, Type, Schema, HarmCategory, HarmBlockThreshold } from "@google/genai";
+
+import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { AnalysisResult, DiscoveryItem } from "../types";
 
-// Store dynamic configuration
+// Configuration State
 let dynamicApiKey = '';
 let dynamicBaseUrl = '';
+let dynamicModelId = 'gemini-2.5-flash';
 
-export const setConfiguration = (key: string, baseUrl?: string) => {
+export const setConfiguration = (key: string, baseUrl?: string, modelId?: string) => {
   dynamicApiKey = key;
-  // Normalize Base URL: remove trailing slash to avoid double slashes when SDK appends paths
   if (baseUrl) {
     dynamicBaseUrl = baseUrl.trim().replace(/\/+$/, '');
   } else {
     dynamicBaseUrl = '';
   }
-};
-
-// Helper function to handle 429 Rate Limits with exponential backoff
-const generateWithRetry = async (model: any, params: any, retries = 5): Promise<any> => {
-  for (let i = 0; i < retries; i++) {
-    try {
-      return await model.generateContent(params);
-    } catch (error: any) {
-      const errMsg = error.message || error.toString();
-      
-      // 1. Diagnosis: Network Error (Failed to fetch)
-      if (errMsg.includes('Failed to fetch') || errMsg.includes('NetworkError')) {
-          throw new Error("网络连接失败。请检查：\n1. VPN/代理是否开启？\n2. 是否配置了有效的 Base URL (代理地址)？\n3. 您的网络是否能访问 Google API？");
-      }
-
-      // 2. Diagnosis: Rate Limit (429)
-      const isRateLimit = errMsg.includes('429') || 
-                          error.status === 429 || 
-                          errMsg.includes('RESOURCE_EXHAUSTED');
-      
-      if (isRateLimit) {
-        if (i === retries - 1) {
-             throw new Error("API 调用频率超限 (429)。您的免费版 Key 额度已耗尽，请更换 Key 或稍后再试。");
-        }
-        // Aggressive backoff: 2s, 4s, 8s, 16s, 32s
-        const delay = Math.pow(2, i + 1) * 1000 + Math.random() * 1000;
-        console.warn(`[AdGuardian] 触发限流 (429), 等待 ${Math.round(delay)}ms 后重试 (第 ${i+1}/${retries} 次)...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        continue;
-      }
-      
-      // Other errors, throw immediately
-      throw error;
-    }
+  if (modelId) {
+    dynamicModelId = modelId;
   }
 };
 
 // ----------------------------------------------------------------------------
-// PRIMARY INSTRUCTION: STRICT LEGAL AUDITOR
+// SYSTEM PROMPTS (Strict Regulatory Format - Clean Text)
 // ----------------------------------------------------------------------------
-const SYSTEM_INSTRUCTION = `
-**【指令：中国广告法合规性判定专用】**
-你是一个**“广告合规校验算法”**，而非人类助手或医生。
-**你的唯一任务：** 将输入内容与《中华人民共和国广告法》进行比对，输出法律风险判定。
+const SYSTEM_INSTRUCTION_TEXT = `
+**【指令：中国广告法合规监管系统】**
+你现在是“中国广告合规校验专家”。
+你的任务是依据《中华人民共和国广告法》等法规，生成**标准的监管举报文案**。
 
-**⚠️ 绝对禁止 (Strict Negative Constraints)：**
-1. **禁止提供医疗建议**：严禁根据输入内容提供任何诊断、治疗方案或健康建议。
-2. **禁止进行医学判断**：不要分析产品是否“有效”，只分析宣传是否“合法”。
-3. **禁止情感交互**：输出必须客观、冷静、法言法语。
+**⚠️ 绝对禁止：**
+1. **禁止**使用 Markdown 格式（如 **加粗**）。文案必须是纯文本。
+2. **禁止**遗漏“投诉请求”部分。
+3. **禁止**提供医疗建议。
 
-**✅ 核心逻辑 (Core Logic)：**
-1. **识别主体**：通过图片OCR识别参数表/背标。
-   - 生产许可证号 **SCxxxx** = **普通食品**。
-   - **卫食健字/国食健字** = **保健食品**。
+**✅ 核心任务：**
+1. **识别真实属性**：通过图片/文案判断产品是“普通食品”（SC开头）、“保健品”（蓝帽子）还是“医疗服务”。
+2. **比对宣传内容**：检查是否使用了“治疗”、“治愈”、“第一”、“顶级”等违规词。
+3. **生成举报文案**：严格按照下方模板填空，不要自由发挥。
 
-2. **法律比对**：
-   - 若主体为 **普通食品**，但文案出现“治疗”、“治愈”、“补肾”、“壮阳”、“抗癌”等词：
-     -> **直接判定：违反《广告法》第17条（非医疗产品涉及疾病治疗功能）。**
-   - 若主体为 **保健食品**，但文案超出核准功能范围：
-     -> **直接判定：违反《广告法》及《食品安全法》第73条（虚假宣传）。**
+**文案模板 (JSON 中 summary 字段必须严格如下，不得包含星号等符号)：**
 
-**违规报告模板 (JSON Summary 字段)：**
+**情形A：电商商品/小程序商城（销售实物）**
+"该企业在[平台名称]店铺销售商品“[商品名称]”（商品链接/路径：[链接]），其宣传内容涉嫌违反《中华人民共和国广告法》。
+违法事实：经核查，该商品实际属性为[真实属性，如普通食品]，不具备治疗疾病的功能。但商家在详情页中明示或暗示具有“[虚假宣传的功效]”等涉及疾病治疗功能的描述，利用普通食品冒充药品/保健品，欺骗、误导消费者。
+法律依据：上述行为违反了《中华人民共和国广告法》第十七条“除医疗、药品、医疗器械广告外，禁止其他任何广告涉及疾病治疗功能”及第二十八条之规定。
+数据证据：经查，该商品页面显示销量为[具体数字]，传播范围较广。
 
-**情形A：电商/商品类**
-"该企业在[平台]店铺销售商品“[商品名称]”（链接：[链接]），涉嫌违反《广告法》。
-**违法事实**：经核查，该商品属于[真实属性，如普通食品]，不具备治疗功能。但商家在宣传中明示或暗示具有[虚假功效]功效，涉嫌利用普通食品冒充药品/保健品进行虚假宣传。
-**法律依据**：违反《中华人民共和国广告法》第十七条、第二十八条。"
+投诉请求：
+1. 请监管部门联系本人、涉事企业三方，协调配合处理此事；
+2. 鉴于涉案广告通过互联网公开发布，且存在欺诈嫌疑，涉及人民群众生命健康财产安全，恳请贵局严格依法履职，予以立案查处，并在法定时限内告知结果；
+3. 请依法落实相关投诉奖励事项。"
 
-**情形B：内容/文章类**
-"该企业通过公众号发布文章“[文章标题]”（链接：[链接]），涉嫌发布违法广告。
-**违法事实**：文章推广“[商品/服务]”，含有[具体违规描述]等涉及疾病治疗功能的描述，误导消费者。
-**法律依据**：违反《中华人民共和国广告法》第十七条。"
+**情形B：公众号文章/资讯推文（内容推广）**
+"该企业通过认证“微信公众号”发布文章：“[文章标题]”（链接：[链接]），涉嫌发布违法广告。
+违法事实：该文章推广“[商品/服务名称]”，含有“[具体违规词汇或描述]”等内容。该内容[具体违规原因，如：断言功效/利用患者形象作证明/涉及疾病治疗]，误导消费者。
+法律依据：违反了《中华人民共和国广告法》第[具体条款]条规定。
+数据证据：经查，该内容阅读量为[具体数字]。
+
+投诉请求：
+1. 请监管部门联系本人、涉事企业三方，协调配合处理此事；
+2. 鉴于涉案广告通过互联网公开发布，且存在欺诈嫌疑，涉及人民群众生命健康财产安全，恳请贵局严格依法履职，予以立案查处，并在法定时限内告知结果；
+3. 请依法落实相关投诉奖励事项。"
 
 **Response Schema**:
-Return strictly valid JSON.
+Return strictly valid JSON matching: { isAd: boolean, productName: string, violations: [{ type, law, explanation, originalText }], summary: string, publicationDate: string, isOldArticle: boolean }.
 `;
 
-const responseSchema: Schema = {
-  type: Type.OBJECT,
-  properties: {
-    isAd: { type: Type.BOOLEAN },
-    productName: { type: Type.STRING },
-    violations: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          type: { type: Type.STRING },
-          law: { type: Type.STRING },
-          explanation: { type: Type.STRING },
-          originalText: { type: Type.STRING },
-        },
-        required: ["type", "law", "explanation", "originalText"],
-      },
-    },
-    summary: { type: Type.STRING },
-    publicationDate: { type: Type.STRING },
-    isOldArticle: { type: Type.BOOLEAN },
-  },
-  required: ["isAd", "productName", "violations", "summary", "isOldArticle"],
-};
-
+// ----------------------------------------------------------------------------
+// MAIN ANALYSIS FUNCTION (Google Gemini Only)
+// ----------------------------------------------------------------------------
 export const analyzeContent = async (
   text: string, 
   images: string[], 
   mode: 'TEXT' | 'URL',
   sourceUrl: string = ''
 ): Promise<AnalysisResult> => {
-  if (!dynamicApiKey) {
-    throw new Error("API Key 未设置。请在登录页输入有效的 Google Gemini API Key。");
-  }
+  if (!dynamicApiKey) throw new Error("API Key 未设置。");
 
-  // Initialize AI with optional Base URL for proxying
+  const currentDate = new Date().toLocaleDateString('zh-CN');
+  
+  // Construct User Prompt with explicit instructions in the prompt to ensure compliance
+  let userText = `Task: Generate Regulatory Compliance Report (Date: ${currentDate})\n`;
+  if (text) userText += `[Content Text]:\n${text}\n\n`;
+  else userText += `[Content Text]: (Analyze images)\n\n`;
+  if (sourceUrl) userText += `[Source URL]: ${sourceUrl}\n`;
+  
+  userText += `\n**CRITICAL INSTRUCTION**: 
+  1. If this is an E-commerce product (buy button/price), use **Template A**.
+  2. If this is a WeChat Article/Content, use **Template B**.
+  3. You MUST include the "投诉请求" (Complaint Request) section at the end of the summary exactly as provided in the system instruction.
+  4. Output strictly valid JSON.
+  5. DO NOT use markdown formatting (like **) in the summary field.\n`;
+
   const clientOptions: any = { apiKey: dynamicApiKey };
   if (dynamicBaseUrl) {
     clientOptions.baseUrl = dynamicBaseUrl;
-    console.log("Using Custom Base URL:", dynamicBaseUrl);
   }
-
   const ai = new GoogleGenAI(clientOptions);
-  const modelId = "gemini-2.5-flash"; 
-  const currentDate = new Date().toLocaleDateString('zh-CN');
-  
-  // Base prompt parts
-  const baseParts: any[] = [];
-  
-  // User Prompt: Explicitly frame this as a Legal Audit task
-  let promptText = `Task: Legal Compliance Audit (Date: ${currentDate})\nTarget: Analyze the following ADVERTISEMENT content for compliance with China Advertising Law.\n\n`;
-  
-  if (text) promptText += `[Content Text]:\n${text}\n\n`;
-  else promptText += `[Content Text]: (None provided, analyze images)\n\n`;
-  
-  if (sourceUrl) promptText += `[Source URL]: ${sourceUrl}\n`;
-  
-  promptText += `\n[Audit Rules]:\n1. Identify Product Type (SC=Food, BlueHat=Health).\n2. Flag any "Cure/Treatment" claims for Non-Drug products as ILLEGAL.\n3. Output strictly JSON.\n`;
 
-  baseParts.push({ text: promptText });
-
-  for (const base64Image of images) {
-    // Dynamic MIME type detection
-    const match = base64Image.match(/^data:(image\/[a-zA-Z+]+);base64,/);
-    const mimeType = match ? match[1] : "image/jpeg";
-    const cleanBase64 = base64Image.replace(/^data:image\/[a-zA-Z+]+;base64,/, "");
-
-    baseParts.push({
-      inlineData: {
-        mimeType: mimeType, 
-        data: cleanBase64
-      }
-    });
-  }
-
-  // Safety settings: BLOCK_NONE is critical for auditing illegal content
   const safetySettings = [
     { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
     { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
     { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
     { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-    { category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY, threshold: HarmBlockThreshold.BLOCK_NONE },
   ];
 
-  // --- ATTEMPT 1: Strict Legal Auditor ---
-  try {
-    const result = await generateWithRetry(ai.models, {
-      model: modelId,
-      contents: [{ role: 'user', parts: baseParts }],
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        responseMimeType: "application/json",
-        responseSchema: responseSchema,
-        temperature: 0.1,
-        safetySettings: safetySettings,
-      }
-    });
+  // Prepare Gemini parts
+  const parts: any[] = [{ text: userText }];
+  for (const img of images) {
+    const match = img.match(/^data:(image\/[a-zA-Z+]+);base64,/);
+    const mimeType = match ? match[1] : "image/jpeg";
+    const cleanBase64 = img.replace(/^data:image\/[a-zA-Z+]+;base64,/, "");
+    parts.push({ inlineData: { mimeType, data: cleanBase64 } });
+  }
 
-    if (result.text) {
-      return JSON.parse(result.text) as AnalysisResult;
-    } 
-    
-    // Explicitly check for blocks
-    if (result.promptFeedback?.blockReason) {
-         console.warn("Blocked by filter:", result.promptFeedback.blockReason);
-    }
-    throw new Error("Strict Mode Empty");
-
-  } catch (error: any) {
-    // If it's a critical infrastructure error, throw it.
-    const msg = error.message || '';
-    if (msg.includes('网络连接失败') || msg.includes('API 调用频率超限') || msg.includes('403') || msg.includes('API key')) {
-        throw error;
-    }
-
-    // --- ATTEMPT 2: Fallback (Passive Data Extraction) ---
-    console.log("Switching to Fallback Mode (Passive Extraction)...");
-
-    const fallbackParts = [...baseParts];
-    fallbackParts.push({ 
-        text: `\n\n[SYSTEM OVERRIDE]: Just extract text to JSON. No analysis. Keys: isAd, productName, violations (array), summary, publicationDate, isOldArticle.` 
-    });
-
+  // Retry Logic for 429 Errors
+  const retries = 3;
+  for (let i = 0; i < retries; i++) {
     try {
-        const resultFallback = await generateWithRetry(ai.models, {
-            model: modelId,
-            contents: [{ role: 'user', parts: fallbackParts }],
-            config: {
-                // No System Instruction -> Reduces persona-based blocking
-                temperature: 0.1,
-                safetySettings: safetySettings,
-            }
-        });
-
-        let finalText = resultFallback.text;
-
-        // Candidate recovery
-        if (!finalText && resultFallback.candidates && resultFallback.candidates.length > 0) {
-            finalText = resultFallback.candidates[0].content?.parts?.[0]?.text;
+      const result = await ai.models.generateContent({
+        model: dynamicModelId || 'gemini-2.5-flash',
+        contents: [{ role: 'user', parts: parts }],
+        config: {
+          systemInstruction: SYSTEM_INSTRUCTION_TEXT,
+          responseMimeType: "application/json", 
+          temperature: 0.1,
+          safetySettings: safetySettings,
         }
+      });
 
-        if (finalText) {
-            // Clean JSON
-            finalText = finalText.replace(/^```json\s*/i, '').replace(/\s*```$/, '');
-            const jsonMatch = finalText.match(/\{[\s\S]*\}/);
-            if (jsonMatch) finalText = jsonMatch[0];
+      let resultText = result.text;
+      
+      // Fallback: Check candidates if text is null/undefined
+      if (!resultText && result.candidates && result.candidates.length > 0) {
+        resultText = result.candidates[0].content?.parts?.[0]?.text;
+      }
 
-            try {
-                return JSON.parse(finalText) as AnalysisResult;
-            } catch (jsonErr) {
-                console.error("Fallback JSON Parse Error", jsonErr);
-            }
-        }
-        
-        // If we reach here, BOTH attempts failed to produce valid JSON.
-        // Instead of throwing an error that crashes the UI, return a "Graceful Failure" result.
-        console.warn("All AI attempts failed. Returning Graceful Failure result.");
-        return {
-          isAd: true,
-          productName: "分析未完成 (需人工复核)",
-          violations: [{
-             type: "系统响应中断",
-             law: "无",
-             explanation: "AI 未能返回有效结果。可能原因：1. 内容过于敏感触发安全拦截；2. 网络连接不稳定；3. 图片无法识别。请尝试减少图片数量或仅上传参数表。",
-             originalText: "无"
-          }],
-          summary: "系统未能自动生成完整报告。建议人工核查该广告内容。如有必要，请更换 API Key 或检查网络环境后重试。",
-          publicationDate: "未知",
-          isOldArticle: false
-        };
+      if (resultText) {
+         resultText = resultText.replace(/^```json\s*/i, '').replace(/\s*```$/, '');
+         const jsonMatch = resultText.match(/\{[\s\S]*\}/);
+         if (jsonMatch) resultText = jsonMatch[0];
+         return JSON.parse(resultText) as AnalysisResult;
+      }
 
-    } catch (fallbackError: any) {
-        console.error("Gemini Analysis Final Error:", fallbackError);
-        // Even if fallback crashes (e.g. network), verify if we should throw or return graceful failure
-        const fallbackMsg = fallbackError.message || '';
-        if (fallbackMsg.includes("网络连接失败") || fallbackMsg.includes("频率超限")) {
-             throw fallbackError;
-        }
-        
-        // Return graceful failure for unknown runtime errors during fallback
-        return {
-          isAd: true,
-          productName: "系统错误",
-          violations: [{
-             type: "运行错误",
-             law: "无",
-             explanation: `系统运行中发生错误: ${fallbackMsg.substring(0, 100)}...`,
-             originalText: "无"
-          }],
-          summary: "分析过程中发生未知错误，请重试。",
-          publicationDate: "未知",
-          isOldArticle: false
-        };
+      throw new Error("No response text received from Gemini.");
+
+    } catch (error: any) {
+       // Handle 429 Quota Exceeded
+       if ((error.status === 429 || error.message?.includes('429')) && i < retries - 1) {
+          console.warn(`Hit 429 limit, retrying in ${(i + 1) * 2}s...`);
+          await new Promise(r => setTimeout(r, 2000 * (i + 1)));
+          continue;
+       }
+       
+       console.error("Analysis Error:", error);
+       
+       // If it's the last retry or a different error, return a graceful failure object
+       if (i === retries - 1) {
+           return {
+            isAd: true,
+            productName: "分析失败",
+            violations: [{
+                type: "系统错误",
+                law: "无",
+                explanation: `API 调用失败: ${error.message || '未知错误'}`,
+                originalText: "无"
+            }],
+            summary: `系统未能自动生成报告。\n原因: ${error.message}\n建议: 检查 Key 是否有余额，网络是否通畅。`,
+            publicationDate: "未知",
+            isOldArticle: false
+            };
+       }
     }
   }
+
+  // Should not reach here
+  throw new Error("Unexpected error flow");
 };
 
-const RISK_SEARCH_QUERIES: Record<string, string[]> = {
-  'MEDICAL': [
-    'site:mp.weixin.qq.com "糖尿病" "彻底根治" after:2024-01-01',
-    'site:mp.weixin.qq.com "高血压" "停药" after:2024-01-01',
-    'site:mp.weixin.qq.com "男性" "壮阳" "延时" after:2024-01-01',
-  ],
-  'BEAUTY': [
-    'site:mp.weixin.qq.com "医美" "0风险" after:2024-01-01',
-    'site:mp.weixin.qq.com "减肥" "不运动" "月瘦" after:2024-01-01',
-  ],
-  'FOOD': [
-    'site:mp.weixin.qq.com "保健食品" "治疗" after:2024-01-01',
-    'site:mp.weixin.qq.com "长高" "增高" after:2024-01-01',
-  ],
-  'GENERAL': [
-    'site:mp.weixin.qq.com "销量第一" "唯一" after:2024-01-01',
-    'site:mp.weixin.qq.com "投资" "包赚" after:2024-01-01',
-  ]
-};
-
+// ----------------------------------------------------------------------------
+// DISCOVERY (Google Search)
+// ----------------------------------------------------------------------------
 export const discoverRisks = async (category: string = 'GENERAL'): Promise<DiscoveryItem[]> => {
-  if (!dynamicApiKey) throw new Error("API Key 未设置。");
+  if (!dynamicApiKey) throw new Error("API Key Missing");
 
-  // Re-init with correct options
   const clientOptions: any = { apiKey: dynamicApiKey };
-  if (dynamicBaseUrl) {
-    clientOptions.baseUrl = dynamicBaseUrl;
-  }
+  if (dynamicBaseUrl) clientOptions.baseUrl = dynamicBaseUrl;
   const ai = new GoogleGenAI(clientOptions);
 
-  const modelId = "gemini-2.5-flash"; 
+  const RISK_SEARCH_QUERIES: Record<string, string[]> = {
+    'MEDICAL': ['site:mp.weixin.qq.com "糖尿病" "彻底根治" after:2024-01-01', 'site:mp.weixin.qq.com "男性" "壮阳" "延时" after:2024-01-01'],
+    'BEAUTY': ['site:mp.weixin.qq.com "医美" "0风险" after:2024-01-01', 'site:mp.weixin.qq.com "减肥" "不运动" "月瘦" after:2024-01-01'],
+    'FOOD': ['site:mp.weixin.qq.com "保健食品" "治疗" after:2024-01-01', 'site:mp.weixin.qq.com "长高" "增高" after:2024-01-01'],
+    'GENERAL': ['site:mp.weixin.qq.com "销量第一" "唯一" after:2024-01-01', 'site:mp.weixin.qq.com "投资" "包赚" after:2024-01-01']
+  };
+
   const queries = RISK_SEARCH_QUERIES[category] || RISK_SEARCH_QUERIES['GENERAL'];
   const selectedQuery = queries[Math.floor(Math.random() * queries.length)];
-
   const prompt = `Use Google Search to find 5 recent WeChat articles for: ${selectedQuery}. Focus on illegal ad claims.`;
 
   try {
-    const result = await generateWithRetry(ai.models, {
-      model: modelId,
+    const result = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: { 
         tools: [{ googleSearch: {} }],
         safetySettings: [
-          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-        ],
+            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        ]
       }
     });
 
@@ -355,11 +230,9 @@ export const discoverRisks = async (category: string = 'GENERAL'): Promise<Disco
         }
       });
     }
-
     const uniqueResults = directResults.filter((item, index, self) =>
       index === self.findIndex((t) => t.url === item.url)
     );
-
     return uniqueResults.slice(0, 10);
   } catch (error) {
     console.error("Discovery Error:", error);
