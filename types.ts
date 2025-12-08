@@ -12,6 +12,7 @@ export interface AnalysisResult {
   isAd: boolean;
   publicationDate?: string;
   isOldArticle?: boolean;
+  isDuplicate?: boolean;
 }
 
 export enum InputMode {

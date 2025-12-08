@@ -6,7 +6,7 @@ import { HistoryList } from './components/HistoryList';
 import { DiscoveryPanel } from './components/DiscoveryPanel';
 import { LoginScreen } from './components/LoginScreen';
 import { AnalysisState, InputMode, HistoryItem } from './types';
-import { analyzeContent } from './services/geminiService';
+import { analyzeContent, setApiKey } from './services/geminiService';
 import { AlertCircle, ShieldCheck, Radar } from 'lucide-react';
 
 const HISTORY_KEY = 'adguardian_history_v1';
@@ -27,7 +27,7 @@ const App: React.FC = () => {
   const [prefilledUrl, setPrefilledUrl] = useState<string>('');
 
   useEffect(() => {
-    console.log("AdGuardian App Loaded - Version 2.5 check");
+    console.log("AdGuardian App Loaded - Version 3.5 Check");
     try {
       const saved = localStorage.getItem(HISTORY_KEY);
       if (saved) {
@@ -46,11 +46,28 @@ const App: React.FC = () => {
     });
   };
 
+  const deleteHistoryItem = (id: string) => {
+    setHistory(prev => {
+      const updated = prev.filter(item => item.id !== id);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   const clearHistory = () => {
     if (window.confirm("确定要清空所有历史记录吗？")) {
       setHistory([]);
       localStorage.removeItem(HISTORY_KEY);
     }
+  };
+
+  const handleLogin = (key: string) => {
+    if (!key) {
+        alert("API Key 不能为空");
+        return;
+    }
+    setApiKey(key);
+    setIsAuthenticated(true);
   };
 
   const handleAnalyze = async (content: string, images: string[], mode: InputMode, url?: string) => {
@@ -66,9 +83,9 @@ const App: React.FC = () => {
     try {
       const result = await analyzeContent(content, images, mode, url);
       
-      // Inject duplicate flag if necessary
       if (isDuplicate && result) {
-         result.productName = `${result.productName} (重复)`; // Marker
+         result.isDuplicate = true;
+         result.productName = `${result.productName} (疑似重复)`; 
       }
 
       setState({ isLoading: false, error: null, result });
@@ -107,9 +124,8 @@ const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Auth Guard: Force login screen if not authenticated
   if (!isAuthenticated) {
-    return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
+    return <LoginScreen onLogin={handleLogin} />;
   }
 
   return (
@@ -120,7 +136,6 @@ const App: React.FC = () => {
       
       <main className="container mx-auto px-4 max-w-6xl mt-8 pb-20 relative z-10">
         
-        {/* Tab Navigation */}
         <div className="flex justify-center mb-10">
            <div className="bg-slate-900 p-1.5 rounded-2xl shadow-xl shadow-slate-300/50 flex relative overflow-hidden">
               <div className="absolute inset-0 bg-slate-800/50"></div>
@@ -186,6 +201,7 @@ const App: React.FC = () => {
             <HistoryList 
               history={history} 
               onSelect={loadHistoryItem} 
+              onDelete={deleteHistoryItem}
               onClear={clearHistory}
             />
           </div>
@@ -197,7 +213,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Footer */}
         <div className="mt-24 border-t border-slate-200 pt-8 text-center">
             <p className="text-xs text-slate-400 mb-2 font-medium tracking-wide">
                 AdGuardian CN &copy; 2025

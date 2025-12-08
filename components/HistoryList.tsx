@@ -5,10 +5,11 @@ import { History, Clock, ChevronRight, Trash2 } from 'lucide-react';
 interface HistoryListProps {
   history: HistoryItem[];
   onSelect: (item: HistoryItem) => void;
+  onDelete: (id: string) => void;
   onClear: () => void;
 }
 
-export const HistoryList: React.FC<HistoryListProps> = ({ history, onSelect, onClear }) => {
+export const HistoryList: React.FC<HistoryListProps> = ({ history, onSelect, onDelete, onClear }) => {
   if (history.length === 0) {
     return null;
   }
@@ -32,10 +33,10 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onSelect, onC
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="divide-y divide-slate-100">
           {history.map((item) => (
-            <button
+            <div
               key={item.id}
+              className="w-full text-left p-4 hover:bg-slate-50 transition-colors flex items-center justify-between group cursor-pointer"
               onClick={() => onSelect(item)}
-              className="w-full text-left p-4 hover:bg-slate-50 transition-colors flex items-center justify-between group"
             >
               <div className="min-w-0 flex-1 pr-4">
                 <div className="flex items-center gap-2 mb-1">
@@ -67,8 +68,23 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onSelect, onC
                   </span>
                 </div>
               </div>
-              <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-blue-500 transition-colors" />
-            </button>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (window.confirm("确定要删除这条记录吗？")) {
+                      onDelete(item.id);
+                    }
+                  }}
+                  className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                  title="删除此记录"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+                <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-blue-500 transition-colors" />
+              </div>
+            </div>
           ))}
         </div>
       </div>

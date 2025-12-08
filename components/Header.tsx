@@ -6,7 +6,6 @@ export const Header: React.FC = () => {
 
   useEffect(() => {
     const now = new Date();
-    // Format: YYYY/MM/DD to be distinct
     const formatted = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
     setCurrentDate(formatted);
   }, []);
@@ -30,8 +29,8 @@ export const Header: React.FC = () => {
               <p className="text-[10px] md:text-xs text-slate-400 uppercase tracking-[0.2em] font-medium">
                 广告合规智能监管系统
               </p>
-              <span className="hidden md:inline-block px-1.5 py-0.5 bg-indigo-900/50 border border-indigo-500/30 rounded text-[9px] text-indigo-300">
-                V2.5 安全版
+              <span className="hidden md:inline-block px-2 py-0.5 bg-fuchsia-600 border border-fuchsia-500 rounded text-[10px] text-white font-bold shadow-lg shadow-fuchsia-900/50">
+                V3.5 (抗干扰增强版)
               </span>
             </div>
           </div>
