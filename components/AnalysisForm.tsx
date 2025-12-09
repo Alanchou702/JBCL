@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { InputMode } from '../types';
 import { FileText, Link as LinkIcon, Sparkles, ClipboardPaste, ImagePlus, X, ScanSearch, Loader2 } from 'lucide-react';
@@ -13,6 +14,7 @@ export const AnalysisForm: React.FC<AnalysisFormProps> = ({ onAnalyze, isLoading
   const [text, setText] = useState('');
   const [url, setUrl] = useState('');
   const [images, setImages] = useState<string[]>([]);
+  const [isCompressing, setIsCompressing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -22,25 +24,60 @@ export const AnalysisForm: React.FC<AnalysisFormProps> = ({ onAnalyze, isLoading
     }
   }, [initialUrl]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const newImages: string[] = [];
-      const files = Array.from(e.target.files);
-      
-      let processedCount = 0;
-      files.forEach(file => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (typeof reader.result === 'string') {
-            newImages.push(reader.result);
+  // Image Compression Utility
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          // Resize if larger than 1024px
+          const MAX_WIDTH = 1024;
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
           }
-          processedCount++;
-          if (processedCount === files.length) {
-            setImages(prev => [...prev, ...newImages]);
-          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Compress to JPEG with 0.7 quality
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          resolve(compressedDataUrl);
         };
-        reader.readAsDataURL(file as Blob);
-      });
+      };
+    });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setIsCompressing(true);
+      const newImages: string[] = [];
+      const files = Array.from(e.target.files) as File[];
+      
+      try {
+        for (const file of files) {
+          // Only process images
+          if (file.type.startsWith('image/')) {
+            const compressed = await compressImage(file);
+            newImages.push(compressed);
+          }
+        }
+        setImages(prev => [...prev, ...newImages]);
+      } catch (err) {
+        console.error("Image processing error", err);
+        alert("图片处理失败，请重试");
+      } finally {
+        setIsCompressing(false);
+      }
     }
   };
 
@@ -50,6 +87,8 @@ export const AnalysisForm: React.FC<AnalysisFormProps> = ({ onAnalyze, isLoading
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isCompressing) return; // Prevent submit while processing
+    
     if (!text.trim() && images.length === 0) {
       alert("请至少提供广告文案或上传广告图片。");
       return;
@@ -163,16 +202,17 @@ export const AnalysisForm: React.FC<AnalysisFormProps> = ({ onAnalyze, isLoading
           <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
             <ScanSearch className="w-4 h-4 text-indigo-500" />
             图片/截图佐证 (支持多图)
+            {isCompressing && <span className="text-xs font-normal text-indigo-400 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> 图片压缩中...</span>}
           </label>
           <p className="text-xs text-slate-500 mb-4 bg-orange-50 border-l-2 border-orange-400 p-2">
              AI将自动识别广告语及销量数据。
              <b className="text-orange-700 block mt-1">⚠️ 必须上传【商品参数页】或【产品背标】截图</b>
-             <span className="text-orange-600">以便AI查看生产许可证号（SC开头），精准判定商家是否用“普通食品”冒充“保健品/药品”销售。</span>
+             <span className="text-orange-600">以便AI查看生产许可证号（SC）或 <b>国药准字(OTC)</b>，精准判定产品属性。</span>
           </p>
           
           <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
             {images.map((img, index) => (
-              <div key={index} className="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+              <div key={index} className="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50">
                 <img src={img} alt={`Uploaded ${index}`} className="w-full h-full object-cover" />
                 <button
                   type="button"
@@ -187,10 +227,19 @@ export const AnalysisForm: React.FC<AnalysisFormProps> = ({ onAnalyze, isLoading
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:border-indigo-400 hover:text-indigo-500 hover:bg-indigo-50/30 transition-all bg-slate-50"
+              disabled={isCompressing}
+              className={`aspect-square flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl transition-all bg-slate-50 ${
+                isCompressing ? 'cursor-wait opacity-50' : 'text-slate-400 hover:border-indigo-400 hover:text-indigo-500 hover:bg-indigo-50/30'
+              }`}
             >
-              <ImagePlus className="w-6 h-6 mb-1.5 opacity-50" />
-              <span className="text-[10px] font-medium">点击上传</span>
+              {isCompressing ? (
+                 <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+              ) : (
+                <>
+                 <ImagePlus className="w-6 h-6 mb-1.5 opacity-50" />
+                 <span className="text-[10px] font-medium">点击上传</span>
+                </>
+              )}
             </button>
             <input
               ref={fileInputRef}
@@ -223,9 +272,9 @@ export const AnalysisForm: React.FC<AnalysisFormProps> = ({ onAnalyze, isLoading
         <div className="mt-8">
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || isCompressing}
             className={`w-full py-4 px-6 rounded-xl text-white font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg shadow-indigo-200 hover:shadow-indigo-300 transform active:scale-[0.99] ${
-              isLoading
+              (isLoading || isCompressing)
                 ? 'bg-slate-400 cursor-not-allowed shadow-none'
                 : 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700'
             }`}

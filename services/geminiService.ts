@@ -25,7 +25,7 @@ export const setConfiguration = (key: string, baseUrl?: string, modelId?: string
 const SYSTEM_INSTRUCTION_TEXT = `
 **【指令：中国广告法合规监管系统】**
 你现在是“中国广告合规校验专家”。
-你的任务是依据《中华人民共和国广告法》等法规，生成**标准的监管举报文案**。
+你的任务是依据《中华人民共和国广告法》、《药品管理法》等法规，生成**标准的监管举报文案**。
 
 **⚠️ 绝对禁止：**
 1. **禁止**使用 Markdown 格式（如 **加粗**）。文案必须是纯文本。
@@ -33,16 +33,26 @@ const SYSTEM_INSTRUCTION_TEXT = `
 3. **禁止**提供医疗建议。
 
 **✅ 核心任务：**
-1. **识别真实属性**：通过图片/文案判断产品是“普通食品”（SC开头）、“保健品”（蓝帽子）还是“医疗服务”。
-2. **比对宣传内容**：检查是否使用了“治疗”、“治愈”、“第一”、“顶级”等违规词。
-3. **生成举报文案**：严格按照下方模板填空，不要自由发挥。
+1. **精准识别真实属性（OCR识别）**：
+   - **普通食品**：生产许可证号以 **SC** 开头。-> 严禁宣传任何功效。
+   - **保健食品**：有**蓝帽子**标志，批准文号为 **国食健字/卫食健字**。-> 仅限宣传核准功能。
+   - **药品/OTC**：有**OTC**标志，批准文号为 **国药准字**（H/Z/S等）。-> **必须严格比对“功能主治”与“广告宣传”。**
+
+2. **逻辑判定（比对分析）**：
+   - **情形1（普通食品冒充）**：真实属性为SC食品，但宣传“补肾、壮阳、治疗、抗癌”。-> **定性：利用普通食品冒充药品/保健品。**
+   - **情形2（药品/OTC夸大）**：真实属性为OTC药品（如主治风热感冒），但广告宣传“防癌、长高、提升性功能”。-> **定性：广告内容超出药品说明书核准的功能主治范围，虚假宣传。**
+   - **情形3（绝对化用语）**：使用“第一、顶级、神效、根治”。
+
+3. **生成举报文案**：严格按照下方模板填空。
 
 **文案模板 (JSON 中 summary 字段必须严格如下，不得包含星号等符号)：**
 
 **情形A：电商商品/小程序商城（销售实物）**
 "该企业在[平台名称]店铺销售商品“[商品名称]”（商品链接/路径：[链接]），其宣传内容涉嫌违反《中华人民共和国广告法》。
-违法事实：经核查，该商品实际属性为[真实属性，如普通食品]，不具备治疗疾病的功能。但商家在详情页中明示或暗示具有“[虚假宣传的功效]”等涉及疾病治疗功能的描述，利用普通食品冒充药品/保健品，欺骗、误导消费者。
-法律依据：上述行为违反了《中华人民共和国广告法》第十七条“除医疗、药品、医疗器械广告外，禁止其他任何广告涉及疾病治疗功能”及第二十八条之规定。
+违法事实：经核查，该商品实际属性为[真实属性，如：OTC药品(国药准字xxxx) / 普通食品(SCxxxx)]。
+[逻辑分支A-如果是食品]：该产品属于普通食品，不具备治疗功能。但商家在详情页中明示或暗示具有“[虚假宣传的功效]”等涉及疾病治疗功能的描述，利用普通食品冒充药品，严重欺骗消费者。
+[逻辑分支B-如果是药品]：该药品核准的功能主治仅为“[说明书上的主治]”，但商家在广告中宣称具有“[广告中的夸大功效]”功效。广告内容超出药品说明书范围，且含有不科学的功效断言，误导消费者。
+法律依据：上述行为违反了《中华人民共和国广告法》第十六条（医疗/药品广告禁止性规定）、第十七条（非药品禁止宣传治疗功能）及第二十八条之规定。
 数据证据：经查，该商品页面显示销量为[具体数字]，传播范围较广。
 
 投诉请求：
@@ -79,17 +89,18 @@ export const analyzeContent = async (
   const currentDate = new Date().toLocaleDateString('zh-CN');
   
   // Construct User Prompt with explicit instructions in the prompt to ensure compliance
-  let userText = `Task: Generate Regulatory Compliance Report (Date: ${currentDate})\n`;
+  let userText = `Task: Regulatory Compliance Audit (Date: ${currentDate})\n`;
   if (text) userText += `[Content Text]:\n${text}\n\n`;
   else userText += `[Content Text]: (Analyze images)\n\n`;
   if (sourceUrl) userText += `[Source URL]: ${sourceUrl}\n`;
   
   userText += `\n**CRITICAL INSTRUCTION**: 
-  1. If this is an E-commerce product (buy button/price), use **Template A**.
-  2. If this is a WeChat Article/Content, use **Template B**.
-  3. You MUST include the "投诉请求" (Complaint Request) section at the end of the summary exactly as provided in the system instruction.
-  4. Output strictly valid JSON.
-  5. DO NOT use markdown formatting (like **) in the summary field.\n`;
+  1. **Identify Product Type**: Look for "SC" (Food), "Blue Hat" (Supplement), or "国药准字/OTC" (Drug).
+  2. **Compare Logic**: 
+     - If Food -> No Cure/Health claims allowed.
+     - If Drug/OTC -> Claims MUST match approved indications (功能主治). Flag if ads claim MORE than approved.
+  3. **Report Format**: Use Template A for products.
+  4. **Output**: Valid JSON only. No markdown.\n`;
 
   const clientOptions: any = { apiKey: dynamicApiKey };
   if (dynamicBaseUrl) {

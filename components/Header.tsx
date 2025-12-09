@@ -31,7 +31,7 @@ export const Header: React.FC = () => {
                 广告合规智能监管系统
               </p>
               <span className="hidden md:inline-block px-2 py-0.5 bg-indigo-600 border border-indigo-500 rounded text-[10px] text-white font-bold shadow-lg shadow-indigo-900/50">
-                V4.2 (纯净文案版)
+                V4.3 (性能优化+OTC修复版)
               </span>
             </div>
           </div>
