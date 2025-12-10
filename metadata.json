@@ -1,5 +1,5 @@
 {
-  "name": "AdGuardian CN - 广告合规校验专家",
+  "name": " 广告合规校验专家",
   "description": "基于Google Gemini的智能广告合规校验工具。能够依据《广告法》、《中医药法》等中国法律法规，自动检测广告文案或链接中的违规内容，生成专业的合规报告及举报文案。",
   "requestFramePermissions": []
 }
