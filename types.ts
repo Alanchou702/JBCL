@@ -40,3 +40,9 @@ export interface DiscoveryItem {
   snippet: string;
   source: string;
 }
+
+export interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+  timestamp: number;
+}

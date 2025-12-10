@@ -6,7 +6,8 @@ import { ResultDisplay } from './components/ResultDisplay';
 import { HistoryList } from './components/HistoryList';
 import { DiscoveryPanel } from './components/DiscoveryPanel';
 import { LoginScreen } from './components/LoginScreen';
-import { AnalysisState, InputMode, HistoryItem } from './types';
+import { CorrectionChat } from './components/CorrectionChat';
+import { AnalysisState, InputMode, HistoryItem, ChatMessage } from './types';
 import { analyzeContent, setConfiguration } from './services/geminiService';
 import { AlertCircle, ShieldCheck, Radar } from 'lucide-react';
 
@@ -24,11 +25,12 @@ const App: React.FC = () => {
     result: null,
   });
 
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [prefilledUrl, setPrefilledUrl] = useState<string>('');
 
   useEffect(() => {
-    console.log("AdGuardian App Loaded - V4.1 (Google Only)");
+    console.log("AdGuardian App Loaded - V4.3 (Google Only + Chat)");
     try {
       const saved = localStorage.getItem(HISTORY_KEY);
       if (saved) {
@@ -69,6 +71,7 @@ const App: React.FC = () => {
 
   const handleAnalyze = async (content: string, images: string[], mode: InputMode, url?: string) => {
     setState({ isLoading: true, error: null, result: null });
+    setChatMessages([]); // Clear chat history on new analysis
     
     const isDuplicate = history.some(item => {
         if (mode === InputMode.URL && url) {
@@ -110,6 +113,7 @@ const App: React.FC = () => {
 
   const loadHistoryItem = (item: HistoryItem) => {
     setActiveTab('ANALYSIS');
+    setChatMessages([]); // Reset chat when loading history
     setState({
       isLoading: false,
       error: null,
@@ -124,105 +128,116 @@ const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  if (!isAuthenticated) {
-    return <LoginScreen onLogin={handleLogin} />;
-  }
-
   return (
-    <div className="min-h-screen bg-slate-50 font-sans selection:bg-indigo-100 selection:text-indigo-900">
-      <div className="fixed inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03] pointer-events-none"></div>
-      
-      <Header />
-      
-      <main className="container mx-auto px-4 max-w-6xl mt-8 pb-20 relative z-10">
+    !isAuthenticated ? (
+      <LoginScreen onLogin={handleLogin} />
+    ) : (
+      <div className="min-h-screen bg-slate-50 font-sans selection:bg-indigo-100 selection:text-indigo-900">
+        <div className="fixed inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03] pointer-events-none"></div>
         
-        <div className="flex justify-center mb-10">
-           <div className="bg-slate-900 p-1.5 rounded-2xl shadow-xl shadow-slate-300/50 flex relative overflow-hidden">
-              <div className="absolute inset-0 bg-slate-800/50"></div>
-              <button 
-                onClick={() => setActiveTab('ANALYSIS')}
-                className={`relative z-10 flex items-center gap-2 px-8 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
-                  activeTab === 'ANALYSIS' 
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 translate-y-[-1px]' 
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                }`}
-              >
-                <ShieldCheck className="w-4 h-4" />
-                合规校验台
-              </button>
-              <button 
-                onClick={() => setActiveTab('DISCOVERY')}
-                className={`relative z-10 flex items-center gap-2 px-8 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
-                  activeTab === 'DISCOVERY' 
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 translate-y-[-1px]' 
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                }`}
-              >
-                <Radar className="w-4 h-4" />
-                全网巡查雷达
-              </button>
-           </div>
-        </div>
+        <Header />
+        
+        <main className="container mx-auto px-4 max-w-6xl mt-8 pb-20 relative z-10">
+          
+          <div className="flex justify-center mb-10">
+             <div className="bg-slate-900 p-1.5 rounded-2xl shadow-xl shadow-slate-300/50 flex relative overflow-hidden">
+                <div className="absolute inset-0 bg-slate-800/50"></div>
+                <button 
+                  onClick={() => setActiveTab('ANALYSIS')}
+                  className={`relative z-10 flex items-center gap-2 px-8 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
+                    activeTab === 'ANALYSIS' 
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 translate-y-[-1px]' 
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  合规校验台
+                </button>
+                <button 
+                  onClick={() => setActiveTab('DISCOVERY')}
+                  className={`relative z-10 flex items-center gap-2 px-8 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
+                    activeTab === 'DISCOVERY' 
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 translate-y-[-1px]' 
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  <Radar className="w-4 h-4" />
+                  全网巡查雷达
+                </button>
+             </div>
+          </div>
 
-        {activeTab === 'ANALYSIS' && (
-          <div className="animate-fade-in space-y-8">
-            <div className="text-center space-y-3 mb-8">
-                <h2 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight">
-                    智能广告合规校验
-                </h2>
-                <p className="text-slate-500 max-w-2xl mx-auto text-lg font-medium">
-                    Google Gemini 双引擎 (V2.5 Flash / V2.0 Pro) · 深度违规识别
-                </p>
+          {activeTab === 'ANALYSIS' && (
+            <div className="animate-fade-in space-y-8">
+              <div className="text-center space-y-3 mb-8">
+                  <h2 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight">
+                      智能广告合规校验
+                  </h2>
+                  <p className="text-slate-500 max-w-2xl mx-auto text-lg font-medium">
+                      Google Gemini 双引擎 (V2.5 Flash / V2.0 Pro) · 深度违规识别
+                  </p>
+              </div>
+
+              <AnalysisForm 
+                key={prefilledUrl} 
+                onAnalyze={handleAnalyze} 
+                isLoading={state.isLoading} 
+                initialUrl={prefilledUrl}
+                onModeChange={() => {
+                  setState(prev => ({ ...prev, result: null, error: null }));
+                  setChatMessages([]);
+                }}
+              />
+              
+              {state.error && (
+                  <div className="bg-rose-50 border border-rose-200 text-rose-800 p-6 rounded-2xl flex items-start gap-4 shadow-sm animate-pulse">
+                      <div className="bg-rose-100 p-2 rounded-full">
+                          <AlertCircle className="w-6 h-6 text-rose-600" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-lg">分析中断</h4>
+                        <p className="text-sm mt-1 leading-relaxed opacity-90 whitespace-pre-line">{state.error}</p>
+                      </div>
+                  </div>
+              )}
+
+              {state.result && (
+                  <>
+                    <ResultDisplay result={state.result} />
+                    <CorrectionChat 
+                      messages={chatMessages}
+                      onUpdateMessages={setChatMessages}
+                      analysisContext={state.result}
+                    />
+                  </>
+              )}
+
+              <HistoryList 
+                history={history} 
+                onSelect={loadHistoryItem} 
+                onDelete={deleteHistoryItem}
+                onClear={clearHistory}
+              />
             </div>
+          )}
 
-            <AnalysisForm 
-              key={prefilledUrl} 
-              onAnalyze={handleAnalyze} 
-              isLoading={state.isLoading} 
-              initialUrl={prefilledUrl}
-            />
-            
-            {state.error && (
-                <div className="bg-rose-50 border border-rose-200 text-rose-800 p-6 rounded-2xl flex items-start gap-4 shadow-sm animate-pulse">
-                    <div className="bg-rose-100 p-2 rounded-full">
-                        <AlertCircle className="w-6 h-6 text-rose-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-lg">分析中断</h4>
-                      <p className="text-sm mt-1 leading-relaxed opacity-90 whitespace-pre-line">{state.error}</p>
-                    </div>
-                </div>
-            )}
+          {activeTab === 'DISCOVERY' && (
+            <div className="animate-fade-in">
+               <DiscoveryPanel onAnalyzeItem={handleAnalyzeDiscoveryItem} />
+            </div>
+          )}
 
-            {state.result && (
-                <ResultDisplay result={state.result} />
-            )}
-
-            <HistoryList 
-              history={history} 
-              onSelect={loadHistoryItem} 
-              onDelete={deleteHistoryItem}
-              onClear={clearHistory}
-            />
+          <div className="mt-24 border-t border-slate-200 pt-8 text-center">
+              <p className="text-xs text-slate-400 mb-2 font-medium tracking-wide">
+                  AdGuardian CN &copy; 2025
+              </p>
+              <p className="text-[10px] text-slate-300 max-w-lg mx-auto leading-relaxed">
+                  本工具生成结果仅供参考，不作为法律依据。请以监管部门最终认定为准。
+              </p>
           </div>
-        )}
-
-        {activeTab === 'DISCOVERY' && (
-          <div className="animate-fade-in">
-             <DiscoveryPanel onAnalyzeItem={handleAnalyzeDiscoveryItem} />
-          </div>
-        )}
-
-        <div className="mt-24 border-t border-slate-200 pt-8 text-center">
-            <p className="text-xs text-slate-400 mb-2 font-medium tracking-wide">
-                AdGuardian CN &copy; 2025
-            </p>
-            <p className="text-[10px] text-slate-300 max-w-lg mx-auto leading-relaxed">
-                本工具生成结果仅供参考，不作为法律依据。请以监管部门最终认定为准。
-            </p>
-        </div>
-      </main>
-    </div>
+        </main>
+      </div>
+    )
   );
 };
 
