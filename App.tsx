@@ -4,17 +4,17 @@ import { Header } from './components/Header';
 import { AnalysisForm } from './components/AnalysisForm';
 import { ResultDisplay } from './components/ResultDisplay';
 import { HistoryList } from './components/HistoryList';
-import { DiscoveryPanel } from './components/DiscoveryPanel';
 import { LoginScreen } from './components/LoginScreen';
 import { CorrectionChat } from './components/CorrectionChat';
+import { RegulationsPanel } from './components/RegulationsPanel';
 import { AnalysisState, InputMode, HistoryItem, ChatMessage } from './types';
 import { analyzeContent, setConfiguration } from './services/geminiService';
-import { AlertCircle, ShieldCheck, Radar } from 'lucide-react';
+import { AlertCircle, ShieldCheck, BookOpen } from 'lucide-react';
 
 const HISTORY_KEY = 'adguardian_history_v1';
 const MAX_HISTORY = 20;
 
-type AppTab = 'ANALYSIS' | 'DISCOVERY';
+type AppTab = 'ANALYSIS' | 'REGULATIONS';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -30,7 +30,7 @@ const App: React.FC = () => {
   const [prefilledUrl, setPrefilledUrl] = useState<string>('');
 
   useEffect(() => {
-    console.log("AdGuardian App Loaded - V4.3 (Google Only + Chat)");
+    console.log("AdGuardian App Loaded - V4.5 (Regulations + Chat)");
     try {
       const saved = localStorage.getItem(HISTORY_KEY);
       if (saved) {
@@ -122,12 +122,6 @@ const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleAnalyzeDiscoveryItem = (url: string) => {
-    setPrefilledUrl(url);
-    setActiveTab('ANALYSIS');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   return (
     !isAuthenticated ? (
       <LoginScreen onLogin={handleLogin} />
@@ -140,11 +134,12 @@ const App: React.FC = () => {
         <main className="container mx-auto px-4 max-w-6xl mt-8 pb-20 relative z-10">
           
           <div className="flex justify-center mb-10">
-             <div className="bg-slate-900 p-1.5 rounded-2xl shadow-xl shadow-slate-300/50 flex relative overflow-hidden">
+             <div className="bg-slate-900 p-1.5 rounded-2xl shadow-xl shadow-slate-300/50 flex flex-wrap justify-center relative overflow-hidden">
                 <div className="absolute inset-0 bg-slate-800/50"></div>
+                
                 <button 
                   onClick={() => setActiveTab('ANALYSIS')}
-                  className={`relative z-10 flex items-center gap-2 px-8 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
+                  className={`relative z-10 flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
                     activeTab === 'ANALYSIS' 
                     ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 translate-y-[-1px]' 
                     : 'text-slate-400 hover:text-white hover:bg-slate-800'
@@ -153,16 +148,17 @@ const App: React.FC = () => {
                   <ShieldCheck className="w-4 h-4" />
                   合规校验台
                 </button>
+                
                 <button 
-                  onClick={() => setActiveTab('DISCOVERY')}
-                  className={`relative z-10 flex items-center gap-2 px-8 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
-                    activeTab === 'DISCOVERY' 
+                  onClick={() => setActiveTab('REGULATIONS')}
+                  className={`relative z-10 flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
+                    activeTab === 'REGULATIONS' 
                     ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 translate-y-[-1px]' 
                     : 'text-slate-400 hover:text-white hover:bg-slate-800'
                   }`}
                 >
-                  <Radar className="w-4 h-4" />
-                  全网巡查雷达
+                  <BookOpen className="w-4 h-4" />
+                  法规知识库
                 </button>
              </div>
           </div>
@@ -221,10 +217,10 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {activeTab === 'DISCOVERY' && (
-            <div className="animate-fade-in">
-               <DiscoveryPanel onAnalyzeItem={handleAnalyzeDiscoveryItem} />
-            </div>
+          {activeTab === 'REGULATIONS' && (
+             <div className="animate-fade-in">
+                <RegulationsPanel />
+             </div>
           )}
 
           <div className="mt-24 border-t border-slate-200 pt-8 text-center">
