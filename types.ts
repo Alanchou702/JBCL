@@ -1,3 +1,4 @@
+
 export interface Violation {
   type: string;
   law: string;
@@ -12,7 +13,14 @@ export interface AnalysisResult {
   isAd: boolean;
   publicationDate?: string;
   isOldArticle?: boolean;
-  isDuplicate?: boolean;
+  isDuplicate?: boolean; // New flag for repeat offenders
+}
+
+export interface Complainee {
+  id: string;
+  name: string;
+  addedAt: number;
+  note?: string;
 }
 
 export enum InputMode {
@@ -34,15 +42,16 @@ export interface HistoryItem {
   result: AnalysisResult;
 }
 
-export interface DiscoveryItem {
-  title: string;
-  url: string;
-  snippet: string;
-  source: string;
-}
-
 export interface ChatMessage {
   role: 'user' | 'model';
   text: string;
   timestamp: number;
+}
+
+// Fix: Add missing DiscoveryItem interface required by services/geminiService.ts and components/DiscoveryPanel.tsx
+export interface DiscoveryItem {
+  title: string;
+  url: string;
+  source: string;
+  snippet?: string;
 }

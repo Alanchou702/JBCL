@@ -1,58 +1,53 @@
 
 import React, { useState, useEffect } from 'react';
-import { Scale, ShieldCheck } from 'lucide-react';
+import { Scale, ShieldCheck, Cpu } from 'lucide-react';
 
 export const Header: React.FC = () => {
   const [currentDate, setCurrentDate] = useState('');
 
   useEffect(() => {
     const now = new Date();
-    const formatted = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
-    setCurrentDate(formatted);
+    setCurrentDate(`${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`);
   }, []);
 
   return (
-    <header className="bg-slate-900 border-b border-indigo-500/30 sticky top-0 z-50 shadow-xl shadow-indigo-900/20">
-      <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950 opacity-90"></div>
-      <div className="container mx-auto px-4 h-18 md:h-20 flex items-center justify-between relative z-10">
-        <div className="flex items-center gap-4">
-          <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-200"></div>
-            <div className="relative bg-slate-800 p-2.5 rounded-xl border border-slate-700 shadow-2xl">
-              <Scale className="w-6 h-6 text-indigo-400" />
-            </div>
+    <header className="bg-slate-950/40 backdrop-blur-2xl border-b border-slate-800/60 sticky top-0 z-[100] ring-1 ring-white/5 shadow-xl">
+      <div className="container mx-auto px-8 h-24 flex items-center justify-between">
+        <div className="flex items-center gap-6">
+          <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-[0_0_40px_rgba(79,70,229,0.3)] hover:scale-110 transition-all duration-500 border border-white/10 group cursor-default">
+            <Scale className="w-8 h-8 text-white group-hover:rotate-12 transition-transform" />
           </div>
           <div>
-            <h1 className="text-xl md:text-2xl font-black tracking-tight text-white font-sans">
-              AdGuardian <span className="text-indigo-400">CN</span>
-            </h1>
-            <div className="flex items-center gap-2">
-              <p className="text-[10px] md:text-xs text-slate-400 uppercase tracking-[0.2em] font-medium">
-                广告合规智能监管系统
-              </p>
-              <span className="hidden md:inline-block px-2 py-0.5 bg-indigo-600 border border-indigo-500 rounded text-[10px] text-white font-bold shadow-lg shadow-indigo-900/50">
-                V4.5 (含医疗指南 & 化妆品分类)
-              </span>
+            <div className="flex items-center gap-4">
+              <h1 className="text-2xl font-black text-white tracking-tighter">
+                ADGUARDIAN <span className="text-indigo-500">TITANIUM</span>
+              </h1>
+              <span className="px-3 py-1 bg-white/5 text-[9px] font-black text-indigo-400 rounded-full border border-indigo-500/20 uppercase tracking-widest">v6.8 Enterprise</span>
             </div>
+            <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.6em] mt-1.5 opacity-80">
+              多维法理审计与合规存证终端
+            </p>
           </div>
         </div>
         
-        <div className="hidden md:flex items-center gap-4">
-           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700/50 backdrop-blur-sm">
-             <div className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        <div className="hidden lg:flex items-center gap-12">
+           <div className="flex flex-col items-end">
+             <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-2">算力集群状态</span>
+             <div className="flex items-center gap-4 bg-slate-950/80 px-5 py-2.5 rounded-2xl border border-slate-800 shadow-inner">
+               <Cpu className="w-4 h-4 text-indigo-400" />
+               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_15px_#10b981] animate-pulse"></div>
+               <span className="text-[11px] text-slate-300 font-black tracking-tight">GEMINI 3.0 PRO READY</span>
              </div>
-             <span className="text-xs text-slate-300 font-medium">系统实时联网</span>
            </div>
            
-           <div className="h-8 w-px bg-slate-700/50"></div>
+           <div className="h-12 w-px bg-slate-800/60"></div>
            
            <div className="flex flex-col items-end">
-             <span className="text-xs text-slate-400 flex items-center gap-1">
-               <ShieldCheck className="w-3 h-3 text-indigo-400" /> 
-               法规库版本: <span className="text-emerald-400 font-mono font-bold">{currentDate || '更新中...'} (今日已更新)</span>
-             </span>
+             <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-2">系统同步周期</span>
+             <div className="flex items-center gap-3">
+                <span className="text-white font-mono font-bold text-lg tracking-widest">{currentDate}</span>
+                <ShieldCheck className="w-5 h-5 text-indigo-400" />
+             </div>
            </div>
         </div>
       </div>

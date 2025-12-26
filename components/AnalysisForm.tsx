@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { InputMode } from '../types';
-import { FileText, Link as LinkIcon, Sparkles, ClipboardPaste, ImagePlus, X, ScanSearch, Loader2, ShoppingBag, MessageSquareText } from 'lucide-react';
+import { Sparkles, ImagePlus, X, Loader2, ShoppingBag, Scan, ShieldAlert, Link as LinkIcon, Camera, LayoutGrid, Trash2 } from 'lucide-react';
 
 interface AnalysisFormProps {
   onAnalyze: (content: string, images: string[], mode: InputMode, url?: string) => void;
@@ -11,34 +11,24 @@ interface AnalysisFormProps {
 }
 
 export const AnalysisForm: React.FC<AnalysisFormProps> = ({ onAnalyze, isLoading, initialUrl, onModeChange }) => {
-  const [mode, setMode] = useState<InputMode>(InputMode.TEXT);
-  const [text, setText] = useState('');
+  const [mode, setMode] = useState<InputMode>(InputMode.URL);
   const [url, setUrl] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [isCompressing, setIsCompressing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (initialUrl) {
-      handleModeSwitch(InputMode.URL);
-      setUrl(initialUrl);
-    }
+    if (initialUrl) { setUrl(initialUrl); setMode(InputMode.URL); }
   }, [initialUrl]);
 
   const handleModeSwitch = (newMode: InputMode) => {
-    // CRITICAL: Strictly clear all input data when switching modes
-    // This ensures detection results and inputs do not bleed into the other category.
-    setText('');
-    setUrl('');
-    setImages([]);
-    
+    if (mode === newMode) return;
     setMode(newMode);
-    
-    // Notify parent to clear current analysis results
+    setUrl(''); 
+    setImages([]);
     if (onModeChange) onModeChange();
   };
 
-  // Image Compression Utility
   const compressImage = (file: File): Promise<string> => {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -48,24 +38,12 @@ export const AnalysisForm: React.FC<AnalysisFormProps> = ({ onAnalyze, isLoading
         img.src = event.target?.result as string;
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-          
-          // Resize if larger than 1024px
-          const MAX_WIDTH = 1024;
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-
-          canvas.width = width;
-          canvas.height = height;
+          let w = img.width, h = img.height;
+          if (w > 1600) { h *= 1600 / w; w = 1600; }
+          canvas.width = w; canvas.height = h;
           const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-          
-          // Compress to JPEG with 0.7 quality
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
-          resolve(compressedDataUrl);
+          if (ctx) ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
         };
       };
     });
@@ -74,243 +52,207 @@ export const AnalysisForm: React.FC<AnalysisFormProps> = ({ onAnalyze, isLoading
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setIsCompressing(true);
-      const newImages: string[] = [];
       const files = Array.from(e.target.files) as File[];
-      
-      try {
-        for (const file of files) {
-          // Only process images
-          if (file.type.startsWith('image/')) {
-            const compressed = await compressImage(file);
-            newImages.push(compressed);
-          }
-        }
-        setImages(prev => [...prev, ...newImages]);
-      } catch (err) {
-        console.error("Image processing error", err);
-        alert("图片处理失败，请重试");
-      } finally {
-        setIsCompressing(false);
-      }
+      const processed = await Promise.all(files.map(f => compressImage(f)));
+      setImages(prev => [...prev, ...processed].slice(0, 15));
+      setIsCompressing(false);
     }
-  };
-
-  const removeImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isCompressing) return; // Prevent submit while processing
-    
-    if (!text.trim() && images.length === 0 && mode === InputMode.TEXT) {
-      alert("请至少提供广告文案或上传广告图片。");
-      return;
-    }
-
-    if (mode === InputMode.URL && !url.trim()) {
-       alert("请输入有效的商品链接或路径");
-       return;
-    }
-
-    onAnalyze(text, images, mode, url);
+    if (mode === InputMode.URL && !url) return alert("请输入目标链接或小程序路径");
+    if (images.length === 0 && mode === InputMode.TEXT) return alert("请上传至少一张素材截图作为审计证据");
+    onAnalyze("", images, mode, url);
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-      {/* Tabs */}
-      <div className="grid grid-cols-2 border-b border-slate-100">
-        <button
-          onClick={() => handleModeSwitch(InputMode.TEXT)}
-          className={`py-4 text-sm font-medium flex items-center justify-center gap-2 transition-all relative ${
-            mode === InputMode.TEXT
-              ? 'text-indigo-600 bg-white'
-              : 'text-slate-500 hover:bg-slate-50'
-          }`}
-        >
-          <MessageSquareText className="w-4 h-4" />
-          文案/图片校验 (微信推文)
-          {mode === InputMode.TEXT && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 mx-12 rounded-t-full"></div>}
-        </button>
-        <button
-          onClick={() => handleModeSwitch(InputMode.URL)}
-          className={`py-4 text-sm font-medium flex items-center justify-center gap-2 transition-all relative ${
-            mode === InputMode.URL
-              ? 'text-indigo-600 bg-white'
-              : 'text-slate-500 hover:bg-slate-50'
-          }`}
-        >
-          <ShoppingBag className="w-4 h-4" />
-          链接/小程序校验 (电商购物)
-          {mode === InputMode.URL && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 mx-12 rounded-t-full"></div>}
-        </button>
+    <div className="bg-slate-900/60 backdrop-blur-3xl rounded-[2.5rem] border border-slate-800/80 overflow-hidden shadow-2xl ring-1 ring-white/5 relative">
+      <div className="p-4 bg-slate-950/40 border-b border-slate-800/50">
+        <div className="grid grid-cols-2 bg-slate-950 rounded-2xl p-1.5 relative border border-slate-800/40 shadow-inner">
+          <div 
+            className={`absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-indigo-600 rounded-xl shadow-[0_0_25px_rgba(79,70,229,0.3)] transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${mode === InputMode.TEXT ? 'translate-x-full' : 'translate-x-0'}`}
+          ></div>
+          <button
+            type="button"
+            onClick={() => handleModeSwitch(InputMode.URL)}
+            className={`relative z-10 py-3.5 text-[11px] font-black tracking-widest flex items-center justify-center gap-2.5 transition-colors ${mode === InputMode.URL ? 'text-white' : 'text-slate-500 hover:text-slate-400'}`}
+          >
+            <ShoppingBag className={`w-4 h-4 transition-transform ${mode === InputMode.URL ? 'scale-110' : ''}`} /> 
+            <span>全维综合审计</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleModeSwitch(InputMode.TEXT)}
+            className={`relative z-10 py-3.5 text-[11px] font-black tracking-widest flex items-center justify-center gap-2.5 transition-colors ${mode === InputMode.TEXT ? 'text-white' : 'text-slate-500 hover:text-slate-400'}`}
+          >
+            <Scan className={`w-4 h-4 transition-transform ${mode === InputMode.TEXT ? 'scale-110' : ''}`} /> 
+            <span>快速图文扫描</span>
+          </button>
+        </div>
       </div>
 
-      {/* Form Content */}
-      <form onSubmit={handleSubmit} className="p-6 md:p-8">
-        {mode === InputMode.TEXT ? (
-          <div className="space-y-6">
-            <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 mb-4">
-               <p className="text-xs text-indigo-700 font-medium flex items-center gap-1.5">
-                 <FileText className="w-4 h-4" />
-                 <span><span className="font-bold">仅适用场景：</span>微信公众号文章、朋友圈文案、线下海报宣传单。</span>
-               </p>
+      <form onSubmit={handleSubmit} className="p-8 space-y-8">
+        {mode === InputMode.URL && (
+          <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="flex items-center justify-between px-1">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Target Repository / URL</label>
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="text-[9px] text-slate-400 font-bold">双引擎巡航就绪</span>
+              </div>
             </div>
-            <div>
-              <label htmlFor="ad-text" className="block text-sm font-bold text-slate-700 mb-2 flex justify-between">
-                <span>微信推文 / 广告文案内容</span>
-                <span className="text-xs font-normal text-slate-400">支持直接粘贴</span>
-              </label>
-              <textarea
-                id="ad-text"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="请粘贴公众号文章全文或广告文案..."
-                className="w-full h-64 p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-none text-slate-700 placeholder:text-slate-300 text-sm leading-relaxed bg-slate-50/50"
+            <div className="relative group">
+              {/* 链接粘贴框稍微大一点 - 增加 py 从 4.5 到 6 */}
+              <input
+                type="text"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="粘贴商品链接、推文URL或小程序路径..."
+                className="w-full pl-12 pr-4 py-6 bg-slate-950/80 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 text-indigo-300 font-mono text-xs transition-all placeholder:text-slate-700 shadow-inner outline-none"
               />
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 mb-4">
-               <p className="text-xs text-indigo-700 font-medium flex items-center gap-1.5">
-                 <ShoppingBag className="w-4 h-4" />
-                 <span><span className="font-bold">仅适用场景：</span>淘宝/京东/拼多多/抖音/快手等商品详情页。</span>
-               </p>
-            </div>
-            <div>
-              <label htmlFor="ad-url" className="block text-sm font-bold text-slate-700 mb-2">
-                电商商品链接 / 小程序路径 <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  id="ad-url"
-                  type="text"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="请输入淘宝/京东/拼多多商品链接..."
-                  className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-mono text-sm bg-slate-50/50"
-                  required
-                />
-                <LinkIcon className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" />
-              </div>
-            </div>
-
-            <div className="bg-blue-50/50 text-blue-800 p-5 rounded-xl flex items-start gap-4 text-sm border border-blue-100">
-              <div className="bg-white p-2 rounded-lg shadow-sm shrink-0">
-                <ClipboardPaste className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="font-bold text-blue-900 mb-1">详情页文字内容 (必填)</p>
-                <p className="text-blue-700/80 leading-relaxed text-xs md:text-sm">
-                  受限于各电商平台及小程序的隐私保护机制，系统无法直接抓取外部链接内容。
-                  <br/>
-                  <span className="font-bold underline decoration-blue-300">请您务必手动复制</span> 详情页中的关键宣传文字粘贴到下方。
-                </p>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="url-text-content" className="block text-sm font-bold text-slate-700 mb-2">
-                商品详情/宣传文案 <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                id="url-text-content"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="请将商品详情页的文字内容粘贴到这里..."
-                className="w-full h-32 p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-none text-slate-700 placeholder:text-slate-300 text-sm bg-slate-50/50"
-              />
+              <LinkIcon className="absolute left-4.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600 group-focus-within:text-indigo-500 transition-colors" />
             </div>
           </div>
         )}
 
-        {/* Shared Image Upload Section */}
-        <div className="mt-8 pt-6 border-t border-slate-100">
-          <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
-            <ScanSearch className="w-4 h-4 text-indigo-500" />
-            {mode === InputMode.TEXT ? '推文截图 / 宣传海报 (可选)' : '商品参数页 / 标签截图 (推荐)'}
-            {isCompressing && <span className="text-xs font-normal text-indigo-400 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> 图片压缩中...</span>}
-          </label>
-          <p className="text-xs text-slate-500 mb-4 bg-orange-50 border-l-2 border-orange-400 p-2">
-             AI将自动识别图片中的违规文字。
-             {mode === InputMode.URL && (
-                 <>
-                  <b className="text-orange-700 block mt-1">⚠️ 电商校验建议上传【商品参数页】或【产品背标】截图</b>
-                  <span className="text-orange-600">以便精准判定 OTC/保健食品/医疗器械 资质。</span>
-                 </>
-             )}
-             {mode === InputMode.TEXT && (
-                 <span className="text-orange-600">支持上传长图或多张截图，系统将合并分析。</span>
-             )}
-          </p>
-          
-          <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
-            {images.map((img, index) => (
-              <div key={index} className="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50">
-                <img src={img} alt={`Uploaded ${index}`} className="w-full h-full object-cover" />
-                <button
-                  type="button"
-                  onClick={() => removeImage(index)}
-                  className="absolute top-1 right-1 bg-black/50 hover:bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
+        <div className="space-y-5">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2.5">
+              <LayoutGrid className="w-4 h-4 text-indigo-400" />
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">证据包 (Evidence Stack)</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-lg font-black ${images.length > 0 ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-slate-800 text-slate-600'}`}>
+                {images.length} / 15
+              </span>
+            </div>
+            {images.length > 0 && (
+              <button 
+                type="button" 
+                onClick={() => setImages([])}
+                className="text-[9px] font-bold text-slate-500 hover:text-rose-500 transition-colors flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800"
+              >
+                <X className="w-3 h-3" /> 重置全部
+              </button>
+            )}
+          </div>
+
+          <div 
+            onClick={() => fileInputRef.current?.click()}
+            className={`group/upload border-2 border-dashed rounded-[2rem] transition-all duration-700 relative overflow-hidden cursor-pointer flex flex-col items-center justify-center
+              ${images.length > 0 ? 'py-8 bg-slate-950/20 border-slate-800' : 'py-16 bg-slate-950/40 border-slate-800/80 hover:border-indigo-500/40 hover:bg-slate-950/60'}
+            `}
+          >
+            <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent opacity-0 group-hover/upload:opacity-100 transition-opacity"></div>
             
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isCompressing}
-              className={`aspect-square flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl transition-all bg-slate-50 ${
-                isCompressing ? 'cursor-wait opacity-50' : 'text-slate-400 hover:border-indigo-400 hover:text-indigo-500 hover:bg-indigo-50/30'
-              }`}
-            >
-              {isCompressing ? (
-                 <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
-              ) : (
-                <>
-                 <ImagePlus className="w-6 h-6 mb-1.5 opacity-50" />
-                 <span className="text-[10px] font-medium">点击上传</span>
-                </>
-              )}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={handleFileChange}
-            />
+            <div className={`transition-all duration-500 flex flex-col items-center ${images.length > 0 ? 'opacity-40 group-hover/upload:opacity-100' : ''}`}>
+              <div className={`bg-slate-900 rounded-2xl flex items-center justify-center border border-slate-800 shadow-2xl transition-all duration-500 
+                ${images.length > 0 ? 'w-12 h-12 mb-3' : 'w-20 h-20 mb-5 group-hover/upload:bg-indigo-600 group-hover/upload:scale-110 group-hover/upload:rotate-6'}
+              `}>
+                {isCompressing ? (
+                  <Loader2 className="w-8 h-8 text-white animate-spin" />
+                ) : images.length > 0 ? (
+                  <Camera className="w-6 h-6 text-slate-400 group-hover/upload:text-white" />
+                ) : (
+                  <ImagePlus className="w-10 h-10 text-slate-700 group-hover/upload:text-white" />
+                )}
+              </div>
+              <p className={`font-black tracking-tight transition-all ${images.length > 0 ? 'text-[11px] text-slate-400 uppercase tracking-widest' : 'text-base text-white'}`}>
+                {images.length > 0 ? '继续向证据包添加图片' : '上传/拖入审计素材证据'}
+              </p>
+            </div>
+          </div>
+
+          {images.length > 0 && (
+            <div className="bg-slate-950/80 rounded-3xl border border-slate-800/60 p-4 shadow-inner ring-1 ring-white/5">
+              <div className="grid grid-cols-4 sm:grid-cols-5 gap-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                {images.map((img, i) => (
+                  <div key={i} className="group/img relative aspect-[3/4] rounded-xl overflow-hidden border border-slate-800/50 bg-slate-900 hover:border-indigo-500/50 transition-all animate-in zoom-in-90 duration-300 shadow-lg">
+                    <img src={img} className="w-full h-full object-cover transition-transform duration-1000 group-hover/img:scale-110" />
+                    
+                    <div className="absolute top-1.5 left-1.5 bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded text-[8px] font-mono font-black text-white border border-white/10 z-10">
+                      ID-{String(i + 1).padStart(2, '0')}
+                    </div>
+                    
+                    {/* 更便捷的删除方式 - 按钮更显眼，增加半透明背景且常态显示一小部分 */}
+                    <button 
+                      type="button" 
+                      onClick={(e) => {e.stopPropagation(); setImages(prev => prev.filter((_, idx) => idx !== i))}} 
+                      className="absolute top-1.5 right-1.5 w-8 h-8 bg-rose-600 hover:bg-rose-500 text-white rounded-full flex items-center justify-center transition-all shadow-xl z-20 group-hover/img:scale-110 active:scale-90 border border-white/20"
+                      title="删除图片"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                    
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-500/50 overflow-hidden">
+                       <div className="h-full bg-indigo-400 w-full animate-[loading_2.5s_infinite]"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="bg-slate-950/40 p-5 rounded-[1.5rem] border border-slate-800/50 flex items-start gap-4">
+            <div className="bg-indigo-500/10 p-2 rounded-lg border border-indigo-500/20">
+              <ShieldAlert className="w-5 h-5 text-indigo-400" />
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-[11px] text-slate-200 font-black uppercase tracking-wider">证据存证规范声明</p>
+              <p className="text-[10px] text-slate-500 leading-relaxed font-medium">
+                素材图片将由 Gemini 3.0 Pro 引擎进行深度法律语义扫描。支持最多 15 张图片同步入库。
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="mt-8">
-          <button
-            type="submit"
-            disabled={isLoading || isCompressing}
-            className={`w-full py-4 px-6 rounded-xl text-white font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg shadow-indigo-200 hover:shadow-indigo-300 transform active:scale-[0.99] ${
-              (isLoading || isCompressing)
-                ? 'bg-slate-400 cursor-not-allowed shadow-none'
-                : 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700'
-            }`}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span>智能引擎校验中...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-5 h-5" />
-                <span>立即开始合规校验</span>
-              </>
-            )}
-          </button>
-        </div>
+        <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileChange} />
+
+        <button
+          type="submit"
+          disabled={isLoading || isCompressing}
+          className={`group/btn w-full py-6 rounded-[1.5rem] text-white font-black text-sm uppercase tracking-[0.5em] flex items-center justify-center gap-4 transition-all relative overflow-hidden active:scale-[0.97] ${
+            isLoading ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 shadow-[0_25px_50px_-12px_rgba(79,70,229,0.5)]'
+          }`}
+        >
+          {isLoading ? (
+            <Loader2 className="w-6 h-6 animate-spin" />
+          ) : (
+            <Sparkles className="w-6 h-6 group-hover/btn:animate-pulse" />
+          )}
+          <span className="relative z-10">{isLoading ? '引擎深度巡航中' : '执行全维法理审计'}</span>
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/btn:animate-[shimmer_2.5s_infinite] pointer-events-none"></div>
+        </button>
       </form>
+
+      <style>{`
+        @keyframes scan {
+          0% { top: -10%; opacity: 0; }
+          20% { opacity: 1; }
+          80% { opacity: 1; }
+          100% { top: 110%; opacity: 0; }
+        }
+        @keyframes shimmer {
+          100% { transform: translateX(100%); }
+        }
+        @keyframes loading {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(2, 6, 23, 0.4);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(71, 85, 105, 0.4);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(99, 102, 241, 0.6);
+        }
+      `}</style>
     </div>
   );
 };
